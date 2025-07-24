@@ -9,7 +9,7 @@ import { ConvexAuthProvider } from "@convex-dev/auth/react";
 
 console.log("Starting application...");
 
-// Convex 클라이언트 초기화
+// Convex 클라이언트 초기화 - 프로덕션 URL 사용
 const convexUrl = process.env.REACT_APP_CONVEX_URL || "https://elegant-clam-570.convex.cloud";
 console.log("Convex URL:", convexUrl);
 
