@@ -6,16 +6,40 @@ export default function App() {
   console.log("App component starting...");
   
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [showTradeForm, setShowTradeForm] = useState(false);
+  const [showJournalForm, setShowJournalForm] = useState(false);
   
   // 실제 Convex 데이터 hooks 사용 (인증 없음)
-  const { trades, recentTrades } = useTradesData();
-  const { journals } = useJournalsData();
+  const { trades, recentTrades, addTrade } = useTradesData();
+  const { journals, addJournal } = useJournalsData();
   const { goals } = useGoalsData();
   
   console.log("Using real Convex data - no authentication required");
   console.log("Trades:", trades);
   console.log("Journals:", journals);
   console.log("Goals:", goals);
+  
+  // 거래 추가 함수
+  const handleAddTrade = async (tradeData) => {
+    try {
+      await addTrade(tradeData);
+      setShowTradeForm(false);
+      console.log("Trade added successfully");
+    } catch (error) {
+      console.error("Failed to add trade:", error);
+    }
+  };
+  
+  // 일지 추가 함수
+  const handleAddJournal = async (journalData) => {
+    try {
+      await addJournal(journalData);
+      setShowJournalForm(false);
+      console.log("Journal added successfully");
+    } catch (error) {
+      console.error("Failed to add journal:", error);
+    }
+  };
   
   return (
     <div className="min-h-screen bg-slate-900 text-white">
@@ -118,7 +142,10 @@ export default function App() {
           <div>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">거래내역</h2>
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+              <button 
+                onClick={() => setShowTradeForm(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+              >
                 새 거래 추가
               </button>
             </div>
@@ -173,7 +200,10 @@ export default function App() {
                 <Activity className="mx-auto h-12 w-12 text-slate-400 mb-4" />
                 <h3 className="text-lg font-medium text-white mb-2">거래 데이터가 없습니다</h3>
                 <p className="text-slate-400 mb-6">첫 번째 거래를 추가해보세요.</p>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
+                <button 
+                  onClick={() => setShowTradeForm(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+                >
                   거래 추가하기
                 </button>
               </div>
@@ -185,7 +215,10 @@ export default function App() {
           <div>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">매매일지</h2>
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+              <button 
+                onClick={() => setShowJournalForm(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+              >
                 새 일지 작성
               </button>
             </div>
@@ -245,13 +278,296 @@ export default function App() {
                 <BookOpen className="mx-auto h-12 w-12 text-slate-400 mb-4" />
                 <h3 className="text-lg font-medium text-white mb-2">매매일지가 없습니다</h3>
                 <p className="text-slate-400 mb-6">첫 번째 매매일지를 작성해보세요.</p>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
+                <button 
+                  onClick={() => setShowJournalForm(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+                >
                   일지 작성하기
                 </button>
               </div>
             )}
           </div>
         )}
+      </div>
+      
+      {/* 거래 추가 모달 */}
+      {showTradeForm && (
+        <TradeFormModal 
+          onSubmit={handleAddTrade}
+          onClose={() => setShowTradeForm(false)}
+        />
+      )}
+      
+      {/* 일지 작성 모달 */}
+      {showJournalForm && (
+        <JournalFormModal 
+          onSubmit={handleAddJournal}
+          onClose={() => setShowJournalForm(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// 거래 추가 폼 모달
+function TradeFormModal({ onSubmit, onClose }) {
+  const [formData, setFormData] = useState({
+    symbol: '',
+    type: 'buy',
+    quantity: '',
+    price: '',
+    date: new Date().toISOString().split('T')[0],
+    memo: ''
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit({
+      ...formData,
+      quantity: parseFloat(formData.quantity),
+      price: parseFloat(formData.price)
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-slate-800 p-6 rounded-lg w-full max-w-md">
+        <h3 className="text-lg font-bold mb-4">새 거래 추가</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">심볼</label>
+            <input
+              type="text"
+              value={formData.symbol}
+              onChange={(e) => setFormData({...formData, symbol: e.target.value})}
+              className="w-full p-2 bg-slate-700 rounded border border-slate-600"
+              placeholder="BTC, ETH, etc."
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">거래 유형</label>
+            <select
+              value={formData.type}
+              onChange={(e) => setFormData({...formData, type: e.target.value})}
+              className="w-full p-2 bg-slate-700 rounded border border-slate-600"
+            >
+              <option value="buy">매수</option>
+              <option value="sell">매도</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">수량</label>
+            <input
+              type="number"
+              step="0.00000001"
+              value={formData.quantity}
+              onChange={(e) => setFormData({...formData, quantity: e.target.value})}
+              className="w-full p-2 bg-slate-700 rounded border border-slate-600"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">가격 (₩)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={formData.price}
+              onChange={(e) => setFormData({...formData, price: e.target.value})}
+              className="w-full p-2 bg-slate-700 rounded border border-slate-600"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">날짜</label>
+            <input
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData({...formData, date: e.target.value})}
+              className="w-full p-2 bg-slate-700 rounded border border-slate-600"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">메모</label>
+            <textarea
+              value={formData.memo}
+              onChange={(e) => setFormData({...formData, memo: e.target.value})}
+              className="w-full p-2 bg-slate-700 rounded border border-slate-600"
+              rows="3"
+              placeholder="거래에 대한 메모..."
+            />
+          </div>
+          
+          <div className="flex gap-2 pt-4">
+            <button
+              type="submit"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg"
+            >
+              추가
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 bg-slate-600 hover:bg-slate-700 text-white py-2 rounded-lg"
+            >
+              취소
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// 일지 작성 폼 모달
+function JournalFormModal({ onSubmit, onClose }) {
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    date: new Date().toISOString().split('T')[0],
+    mood: 'neutral',
+    tags: []
+  });
+  
+  const [tagInput, setTagInput] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+  
+  const addTag = () => {
+    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
+      setFormData({
+        ...formData,
+        tags: [...formData.tags, tagInput.trim()]
+      });
+      setTagInput('');
+    }
+  };
+  
+  const removeTag = (tagToRemove) => {
+    setFormData({
+      ...formData,
+      tags: formData.tags.filter(tag => tag !== tagToRemove)
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-slate-800 p-6 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <h3 className="text-lg font-bold mb-4">새 매매일지 작성</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">제목</label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData({...formData, title: e.target.value})}
+              className="w-full p-2 bg-slate-700 rounded border border-slate-600"
+              placeholder="오늘의 거래 분석"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">날짜</label>
+            <input
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData({...formData, date: e.target.value})}
+              className="w-full p-2 bg-slate-700 rounded border border-slate-600"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">내용</label>
+            <textarea
+              value={formData.content}
+              onChange={(e) => setFormData({...formData, content: e.target.value})}
+              className="w-full p-2 bg-slate-700 rounded border border-slate-600"
+              rows="6"
+              placeholder="오늘의 거래에 대한 분석과 소감을 작성해주세요..."
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">기분</label>
+            <select
+              value={formData.mood}
+              onChange={(e) => setFormData({...formData, mood: e.target.value})}
+              className="w-full p-2 bg-slate-700 rounded border border-slate-600"
+            >
+              <option value="great">😄 매우 좋음</option>
+              <option value="good">😊 좋음</option>
+              <option value="neutral">😐 보통</option>
+              <option value="bad">😞 나쁨</option>
+              <option value="terrible">😡 매우 나쁨</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">태그</label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                className="flex-1 p-2 bg-slate-700 rounded border border-slate-600"
+                placeholder="태그 입력..."
+                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+              />
+              <button
+                type="button"
+                onClick={addTag}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+              >
+                추가
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {formData.tags.map((tag, index) => (
+                <span
+                  key={index}
+                  className="bg-blue-900 text-blue-300 px-2 py-1 rounded-full text-xs flex items-center gap-1"
+                >
+                  #{tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    className="text-blue-300 hover:text-white"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+          
+          <div className="flex gap-2 pt-4">
+            <button
+              type="submit"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg"
+            >
+              작성
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 bg-slate-600 hover:bg-slate-700 text-white py-2 rounded-lg"
+            >
+              취소
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
