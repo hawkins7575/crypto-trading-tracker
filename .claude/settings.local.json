@@ -20,7 +20,8 @@
       "Bash(brew install:*)",
       "Bash(PORT=8080 HOST=0.0.0.0 npm start)",
       "Bash(git init:*)",
-      "Bash(git remote add:*)"
+      "Bash(git remote add:*)",
+      "Bash(npx vercel:*)"
     ],
     "deny": []
   }

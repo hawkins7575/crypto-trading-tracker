@@ -1,8 +1,5 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "build",
-  "framework": "create-react-app",
-  "env": {
-    "REACT_APP_CONVEX_URL": "@react_app_convex_url"
-  }
+  "framework": "create-react-app"
 }
