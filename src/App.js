@@ -11,9 +11,16 @@ export default function App() {
   useEffect(() => {
     console.log("App useEffect running...");
     try {
-      // 임시로 Convex 비활성화하고 기본 동작만 테스트
-      setTrades([]);
-      console.log("App initialized successfully");
+      // 간단한 Convex 테스트 시작
+      import('./hooks/useConvexData').then(({ useTradesData }) => {
+        console.log("useConvexData imported successfully");
+        setTrades([]);
+        console.log("App initialized successfully");
+      }).catch(err => {
+        console.error("Failed to import useConvexData:", err);
+        setTrades([]);
+        console.log("App initialized without Convex");
+      });
     } catch (err) {
       console.error("Error in App useEffect:", err);
       setError(err.message);
