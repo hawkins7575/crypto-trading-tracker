@@ -1,16 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Home, BarChart3, Activity, BookOpen } from 'lucide-react';
-import { useTradesData } from './hooks/useConvexData';
 
 export default function App() {
-  console.log("App component is rendering...");
+  console.log("App component starting...");
   
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [error, setError] = useState(null);
+  const [trades, setTrades] = useState([]);
   
-  // Convex 데이터 훅
-  const { trades } = useTradesData();
+  useEffect(() => {
+    console.log("App useEffect running...");
+    try {
+      // 임시로 Convex 비활성화하고 기본 동작만 테스트
+      setTrades([]);
+      console.log("App initialized successfully");
+    } catch (err) {
+      console.error("Error in App useEffect:", err);
+      setError(err.message);
+    }
+  }, []);
   
-  console.log("Trades data loaded:", trades);
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4 text-red-400">오류 발생</h1>
+          <p className="text-slate-300">{error}</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-slate-900 text-white">
