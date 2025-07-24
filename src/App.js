@@ -31,8 +31,8 @@ import { GoalModal } from './components/GoalModal';
 import { Header } from './components/Header';
 
 export default function App() {
-  // 인증 상태 확인
-  const currentUser = useQuery(api.auth.currentUser);
+  // 인증 상태 확인 (임시 비활성화)
+  // const currentUser = useQuery(api.auth.currentUser);
   const { signOut } = useAuthActions();
 
   // Convex 데이터 훅 사용 (항상 호출되어야 함)
@@ -601,14 +601,12 @@ export default function App() {
   const stats = { ...getStats, ...goals };
   const recentAmounts = getRecentAmounts;
 
-  // 로그인하지 않은 경우 로그인 화면 표시  
-  if (currentUser === undefined) {
-    return <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <div className="text-white">로딩 중...</div>
-    </div>;
-  }
-  
-  // 임시로 로그인 없이도 작동하도록 설정 (테스트용)
+  // 로그인 기능 완전히 비활성화 (테스트용)
+  // if (currentUser === undefined) {
+  //   return <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+  //     <div className="text-white">로딩 중...</div>
+  //   </div>;
+  // }
   // if (!currentUser) {
   //   return <Login />;
   // }
