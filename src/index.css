@@ -1,0 +1,232 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  }
+}
+
+/* Custom styles for enhanced design */
+
+/* General improvements for professional look */
+body {
+  @apply bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 text-white;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Card-like elements with enhanced styling */
+.bg-slate-800 {
+  @apply rounded-2xl shadow-2xl border border-slate-700/50 backdrop-blur-sm;
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+}
+
+/* Enhanced buttons with micro-interactions */
+button {
+  @apply transition-all duration-300 ease-out transform-gpu;
+}
+
+button:hover {
+  @apply scale-105 shadow-lg;
+}
+
+button:active {
+  @apply scale-95;
+}
+
+/* Professional input styling */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+textarea {
+  @apply bg-slate-900/80 border border-slate-600/50 rounded-xl px-4 py-3 text-white;
+  @apply focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 focus:shadow-lg;
+  @apply transition-all duration-200 ease-out;
+  @apply backdrop-blur-sm;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+textarea:focus {
+  @apply bg-slate-800/90 transform scale-105;
+}
+
+/* Specific component adjustments */
+.FloatingActionButton {
+  @apply rounded-full shadow-xl hover:shadow-2xl;
+}
+
+/* react-calendar overrides */
+.react-calendar-container {
+  .react-calendar {
+    border: none !important;
+    background: transparent !important;
+    font-family: inherit;
+  }
+
+  .react-calendar__navigation button {
+    color: #94A3B8;
+    font-weight: 600;
+    font-size: 1.125rem; /* text-xl */
+    &:hover,
+    &:focus {
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 0.5rem;
+    }
+  }
+
+  .react-calendar__month-view__weekdays__weekday {
+    color: #64748B;
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 500;
+    abbr {
+      text-decoration: none;
+    }
+  }
+
+  .react-calendar__tile {
+    color: #E2E8F0;
+    padding: 0.75em 0.5em; /* py-3 px-2 */
+    border-radius: 0.5rem;
+    position: relative;
+    height: 80px; /* Increased height for better visibility */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 500;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+  }
+
+  .react-calendar__tile--now {
+    background: rgba(96, 165, 250, 0.2); /* blue-400/20 */
+    color: #60A5FA; /* blue-400 */
+    font-weight: 600;
+  }
+
+  .react-calendar__tile--active {
+    background: #60A5FA !important; /* blue-400 */
+    color: white !important;
+    border-radius: 0.5rem;
+  }
+
+  .react-calendar__tile--hasActive {
+    background: rgba(96, 165, 250, 0.3) !important;
+  }
+
+  .react-calendar__month-view__days__day--weekend {
+    color: #F87171; /* red-400 */
+  }
+
+  .react-calendar__month-view__days__day--neighboringMonth {
+    color: #64748B; /* slate-500 */
+  }
+
+  .react-calendar__tile.has-entry {
+    background-color: rgba(52, 211, 153, 0.1); /* emerald-400/10 */
+    border: 1px solid rgba(52, 211, 153, 0.3); /* emerald-400/30 */
+  }
+
+  .react-calendar__tile.has-entry:hover {
+    background-color: rgba(52, 211, 153, 0.2); /* emerald-400/20 */
+  }
+
+  .react-calendar__tile.react-calendar__month-view__days__day--neighboringMonth.has-entry {
+    background-color: rgba(52, 211, 153, 0.05); /* emerald-400/05 */
+    border: 1px solid rgba(52, 211, 153, 0.15); /* emerald-400/15 */
+  }
+
+  .react-calendar__tile.react-calendar__month-view__days__day--neighboringMonth.has-entry:hover {
+    background-color: rgba(52, 211, 153, 0.1); /* emerald-400/10 */
+  }
+
+  .react-calendar__tile.react-calendar__tile--now.has-entry {
+    background: rgba(96, 165, 250, 0.3) !important; /* blue-400/30 */
+    border: 1px solid #60A5FA; /* blue-400 */
+  }
+
+  .react-calendar__tile.react-calendar__tile--now.has-entry:hover {
+    background: rgba(96, 165, 250, 0.4) !important; /* blue-400/40 */
+  }
+
+  .react-calendar__tile.react-calendar__tile--active.has-entry {
+    background: #60A5FA !important;
+    border: 1px solid #60A5FA;
+  }
+
+  .react-calendar__tile.react-calendar__tile--active.has-entry:hover {
+    background: #5095E0 !important;
+  }
+}
+
+/* Enhanced scrollbar styling */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(71, 85, 105, 0.5) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, rgba(71, 85, 105, 0.6), rgba(100, 116, 139, 0.8));
+  border-radius: 4px;
+  border: 1px solid rgba(71, 85, 105, 0.3);
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, rgba(71, 85, 105, 0.8), rgba(100, 116, 139, 1));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Smooth animations for all interactive elements */
+* {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Pulse animation for indicators */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Subtle background patterns */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
+}
