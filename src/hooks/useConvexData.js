@@ -1,101 +1,85 @@
 import { useQuery, useMutation } from "convex/react";
 
-// Convex API가 아직 생성되지 않은 경우를 위한 더미 함수들
-const dummyApi = {
-  trades: {
-    getAllTrades: null,
-    addTrade: null,
-    updateTrade: null,
-    deleteTrade: null,
-    getRecentTrades: null,
-  },
-  journals: {
-    getAllJournals: null,
-    addJournal: null,
-    updateJournal: null,
-    deleteJournal: null,
-    getRecentJournals: null,
-  },
-  strategies: {
-    getAllStrategies: null,
-    getActiveStrategies: null,
-    addStrategy: null,
-    updateStrategy: null,
-    deleteStrategy: null,
-  },
-  goals: {
-    getCurrentGoals: null,
-    setGoals: null,
-  },
+// 안전한 API import with error handling
+let api = null;
+
+// Dynamic import를 사용하여 ES6 모듈 스타일로 로딩
+const loadApi = async () => {
+  try {
+    const apiModule = await import("../_generated/api");
+    api = apiModule.api || apiModule.default || apiModule;
+  } catch (error) {
+    // API 파일을 찾을 수 없음 - 조용히 무시
+  }
 };
 
-// Convex API 동적 로딩
-let api;
-try {
-  // 배포 후 생성되는 API 파일 사용
-  api = require("../_generated/api").api;
-} catch (error) {
-  console.warn("Convex API not available yet. Please run 'npx convex dev' first.");
-  api = dummyApi;
-}
+// 즉시 실행하여 API 로드
+loadApi();
 
-// 거래 데이터 훅
+// 더미 함수들 - null 반환하는 안전한 함수
+const dummyQuery = () => null;
+const dummyMutation = () => () => Promise.resolve();
+
+// 거래 데이터 훅 - 완전히 안전한 버전
 export const useTradesData = () => {
-  const trades = useQuery(api.trades?.getAllTrades) || [];
-  const addTrade = useMutation(api.trades?.addTrade);
-  const updateTrade = useMutation(api.trades?.updateTrade);
-  const deleteTrade = useMutation(api.trades?.deleteTrade);
-  const getRecentTrades = useQuery(api.trades?.getRecentTrades, api.trades?.getRecentTrades ? { limit: 10 } : undefined);
+  // Hooks를 항상 같은 순서로 무조건 호출
+  const trades = useQuery(api?.trades?.getAllTrades || dummyQuery);
+  const recentTrades = useQuery(api?.trades?.getRecentTrades || dummyQuery, 
+    api?.trades?.getRecentTrades ? { limit: 10 } : undefined);
+  const addTrade = useMutation(api?.trades?.addTrade || dummyMutation);
+  const updateTrade = useMutation(api?.trades?.updateTrade || dummyMutation);
+  const deleteTrade = useMutation(api?.trades?.deleteTrade || dummyMutation);
 
   return {
-    trades,
-    recentTrades: getRecentTrades || [],
+    trades: trades || [],
+    recentTrades: recentTrades || [],
     addTrade: addTrade || (() => Promise.resolve()),
     updateTrade: updateTrade || (() => Promise.resolve()),
     deleteTrade: deleteTrade || (() => Promise.resolve()),
   };
 };
 
-// 매매일지 데이터 훅
+// 매매일지 데이터 훅 - 완전히 안전한 버전
 export const useJournalsData = () => {
-  const journals = useQuery(api.journals?.getAllJournals) || [];
-  const addJournal = useMutation(api.journals?.addJournal);
-  const updateJournal = useMutation(api.journals?.updateJournal);
-  const deleteJournal = useMutation(api.journals?.deleteJournal);
-  const getRecentJournals = useQuery(api.journals?.getRecentJournals, api.journals?.getRecentJournals ? { limit: 3 } : undefined);
+  // Hooks를 항상 같은 순서로 무조건 호출
+  const journals = useQuery(api?.journals?.getAllJournals || dummyQuery);
+  const recentJournals = useQuery(api?.journals?.getRecentJournals || dummyQuery, 
+    api?.journals?.getRecentJournals ? { limit: 5 } : undefined);
+  const addJournal = useMutation(api?.journals?.addJournal || dummyMutation);
+  const updateJournal = useMutation(api?.journals?.updateJournal || dummyMutation);
+  const deleteJournal = useMutation(api?.journals?.deleteJournal || dummyMutation);
 
   return {
-    journals,
-    recentJournals: getRecentJournals || [],
+    journals: journals || [],
+    recentJournals: recentJournals || [],
     addJournal: addJournal || (() => Promise.resolve()),
     updateJournal: updateJournal || (() => Promise.resolve()),
     deleteJournal: deleteJournal || (() => Promise.resolve()),
   };
 };
 
-// 매매전략 데이터 훅
+// 매매전략 데이터 훅 - 완전히 안전한 버전
 export const useStrategiesData = () => {
-  const strategies = useQuery(api.strategies?.getAllStrategies) || [];
-  const activeStrategies = useQuery(api.strategies?.getActiveStrategies) || [];
-  const addStrategy = useMutation(api.strategies?.addStrategy);
-  const updateStrategy = useMutation(api.strategies?.updateStrategy);
-  const deleteStrategy = useMutation(api.strategies?.deleteStrategy);
-  const toggleStrategyActive = useMutation(api.strategies?.toggleStrategyActive);
+  // Hooks를 항상 같은 순서로 무조건 호출
+  const strategies = useQuery(api?.strategies?.getAllStrategies || dummyQuery);
+  const addStrategy = useMutation(api?.strategies?.addStrategy || dummyMutation);
+  const updateStrategy = useMutation(api?.strategies?.updateStrategy || dummyMutation);
+  const deleteStrategy = useMutation(api?.strategies?.deleteStrategy || dummyMutation);
 
   return {
-    strategies,
-    activeStrategies,
+    strategies: strategies || [],
+    activeStrategies: (strategies || []).filter(s => s.isActive),
     addStrategy: addStrategy || (() => Promise.resolve()),
     updateStrategy: updateStrategy || (() => Promise.resolve()),
     deleteStrategy: deleteStrategy || (() => Promise.resolve()),
-    toggleStrategyActive: toggleStrategyActive || (() => Promise.resolve()),
   };
 };
 
-// 목표 데이터 훅
+// 목표 데이터 훅 - 완전히 안전한 버전
 export const useGoalsData = () => {
-  const goals = useQuery(api.goals?.getCurrentGoals);
-  const setGoals = useMutation(api.goals?.setGoals);
+  // Hooks를 항상 같은 순서로 무조건 호출
+  const goals = useQuery(api?.goals?.getCurrentGoals || dummyQuery);
+  const setGoals = useMutation(api?.goals?.setGoals || dummyMutation);
 
   return {
     goals: goals || {

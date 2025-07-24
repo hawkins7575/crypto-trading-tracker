@@ -3,7 +3,8 @@ import { useQuery } from "convex/react";
 import { CheckCircle, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 
 const ConvexStatus = () => {
-  // API 파일 로드 시도
+  // API 파일 로드 시도 - dynamic import로 변경 예정이지만 
+  // 현재는 기존 방식 유지 (컴포넌트 내에서 dynamic import는 복잡함)
   let api = null;
   try {
     api = require("../_generated/api").api;

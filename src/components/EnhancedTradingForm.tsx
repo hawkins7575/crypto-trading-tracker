@@ -1,6 +1,21 @@
 import React, { useState } from 'react';
 import { ArrowDown, ArrowUp, Wallet, Save, X, BarChart3 } from 'lucide-react';
-import { Trade, FormErrors } from '@/types';
+
+// 로컬 타입 정의 (TypeScript 없이 JS에서 사용하는 경우를 대비)
+interface Trade {
+  _id?: string;
+  date: string;
+  entry: number;
+  withdrawal: number;
+  balance: number;
+  profit: number;
+  profitRate: number;
+  memo?: string;
+}
+
+interface FormErrors {
+  [key: string]: string;
+}
 
 interface CurrentTrade {
   date: string;
