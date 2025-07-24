@@ -1,4 +1,4 @@
-// import { useQuery, useMutation } from "convex/react"; // Temporarily disabled for testing
+import { useQuery, useMutation } from "convex/react";
 
 // Convex API가 아직 생성되지 않은 경우를 위한 더미 함수들
 const dummyApi = {
@@ -39,19 +39,13 @@ try {
   api = dummyApi;
 }
 
-// 거래 데이터 훅 (임시로 빈 데이터 반환)
+// 거래 데이터 훅
 export const useTradesData = () => {
-  // const trades = useQuery(api.trades?.getAllTrades) || [];
-  // const addTrade = useMutation(api.trades?.addTrade);
-  // const updateTrade = useMutation(api.trades?.updateTrade);
-  // const deleteTrade = useMutation(api.trades?.deleteTrade);
-  // const getRecentTrades = useQuery(api.trades?.getRecentTrades, api.trades?.getRecentTrades ? { limit: 10 } : undefined);
-  
-  const trades = [];
-  const addTrade = async () => {};
-  const updateTrade = async () => {};
-  const deleteTrade = async () => {};
-  const getRecentTrades = [];
+  const trades = useQuery(api.trades?.getAllTrades) || [];
+  const addTrade = useMutation(api.trades?.addTrade);
+  const updateTrade = useMutation(api.trades?.updateTrade);
+  const deleteTrade = useMutation(api.trades?.deleteTrade);
+  const getRecentTrades = useQuery(api.trades?.getRecentTrades, api.trades?.getRecentTrades ? { limit: 10 } : undefined);
 
   return {
     trades,
@@ -64,17 +58,11 @@ export const useTradesData = () => {
 
 // 매매일지 데이터 훅
 export const useJournalsData = () => {
-  // const journals = useQuery(api.journals?.getAllJournals) || [];
-  // const addJournal = useMutation(api.journals?.addJournal);
-  // const updateJournal = useMutation(api.journals?.updateJournal);
-  // const deleteJournal = useMutation(api.journals?.deleteJournal);
-  // const getRecentJournals = useQuery(api.journals?.getRecentJournals, api.journals?.getRecentJournals ? { limit: 3 } : undefined);
-  
-  const journals = [];
-  const addJournal = async () => {};
-  const updateJournal = async () => {};
-  const deleteJournal = async () => {};
-  const getRecentJournals = [];
+  const journals = useQuery(api.journals?.getAllJournals) || [];
+  const addJournal = useMutation(api.journals?.addJournal);
+  const updateJournal = useMutation(api.journals?.updateJournal);
+  const deleteJournal = useMutation(api.journals?.deleteJournal);
+  const getRecentJournals = useQuery(api.journals?.getRecentJournals, api.journals?.getRecentJournals ? { limit: 3 } : undefined);
 
   return {
     journals,
@@ -87,19 +75,12 @@ export const useJournalsData = () => {
 
 // 매매전략 데이터 훅
 export const useStrategiesData = () => {
-  // const strategies = useQuery(api.strategies?.getAllStrategies) || [];
-  // const activeStrategies = useQuery(api.strategies?.getActiveStrategies) || [];
-  // const addStrategy = useMutation(api.strategies?.addStrategy);
-  // const updateStrategy = useMutation(api.strategies?.updateStrategy);
-  // const deleteStrategy = useMutation(api.strategies?.deleteStrategy);
-  // const toggleStrategyActive = useMutation(api.strategies?.toggleStrategyActive);
-  
-  const strategies = [];
-  const activeStrategies = [];
-  const addStrategy = async () => {};
-  const updateStrategy = async () => {};
-  const deleteStrategy = async () => {};
-  const toggleStrategyActive = async () => {};
+  const strategies = useQuery(api.strategies?.getAllStrategies) || [];
+  const activeStrategies = useQuery(api.strategies?.getActiveStrategies) || [];
+  const addStrategy = useMutation(api.strategies?.addStrategy);
+  const updateStrategy = useMutation(api.strategies?.updateStrategy);
+  const deleteStrategy = useMutation(api.strategies?.deleteStrategy);
+  const toggleStrategyActive = useMutation(api.strategies?.toggleStrategyActive);
 
   return {
     strategies,
@@ -113,16 +94,8 @@ export const useStrategiesData = () => {
 
 // 목표 데이터 훅
 export const useGoalsData = () => {
-  // const goals = useQuery(api.goals?.getCurrentGoals);
-  // const setGoals = useMutation(api.goals?.setGoals);
-  
-  const goals = {
-    monthlyTarget: 1000000,
-    weeklyTarget: 250000,
-    yearlyTarget: 12000000,
-    targetWinRate: 70,
-  };
-  const setGoals = async () => {};
+  const goals = useQuery(api.goals?.getCurrentGoals);
+  const setGoals = useMutation(api.goals?.setGoals);
 
   return {
     goals: goals || {
