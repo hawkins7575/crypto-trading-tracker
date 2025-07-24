@@ -1,11 +1,28 @@
 import React, { useState } from 'react';
 import { Home, BarChart3, Activity, BookOpen } from 'lucide-react';
+import { useAuthActions } from "@convex-dev/auth/react";
+import { Authenticated, Unauthenticated } from "convex/react";
 import { useTradesData, useJournalsData, useGoalsData } from './hooks/useConvexData';
+import Login from './components/Login';
 
 export default function App() {
   console.log("App component starting...");
   
+  return (
+    <>
+      <Authenticated>
+        <AuthenticatedApp />
+      </Authenticated>
+      <Unauthenticated>
+        <Login />
+      </Unauthenticated>
+    </>
+  );
+}
+
+function AuthenticatedApp() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const { signOut } = useAuthActions();
   
   // Convex 데이터 hooks 사용
   const { trades, recentTrades } = useTradesData();
@@ -22,8 +39,16 @@ export default function App() {
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold text-white">Crypto Trading Tracker</h1>
           </div>
-          <div className="text-slate-300 text-sm">
-            거래 데이터: {trades?.length || 0}개
+          <div className="flex items-center gap-4">
+            <div className="text-slate-300 text-sm">
+              거래 데이터: {trades?.length || 0}개
+            </div>
+            <button 
+              onClick={() => signOut()}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"
+            >
+              로그아웃
+            </button>
           </div>
         </div>
       </div>

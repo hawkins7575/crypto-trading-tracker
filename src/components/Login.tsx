@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuthActions } from "@convex-dev/auth/react";
-import { Github, Mail } from 'lucide-react';
+import { Github } from 'lucide-react';
 
 const Login: React.FC = () => {
   const { signIn } = useAuthActions();
@@ -9,9 +9,6 @@ const Login: React.FC = () => {
     void signIn("github");
   };
 
-  const handleGoogleSignIn = () => {
-    void signIn("google");
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-black flex items-center justify-center px-4">
