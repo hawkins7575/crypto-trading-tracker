@@ -33,14 +33,6 @@ const Login: React.FC = () => {
             <Github size={20} />
             GitHub로 로그인
           </button>
-
-          <button
-            onClick={handleGoogleSignIn}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-gray-800 py-3 px-4 rounded-lg transition-colors duration-200 font-medium border"
-          >
-            <Mail size={20} />
-            Google로 로그인
-          </button>
         </div>
 
         <div className="mt-8 text-center">

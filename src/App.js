@@ -601,16 +601,17 @@ export default function App() {
   const stats = { ...getStats, ...goals };
   const recentAmounts = getRecentAmounts;
 
-  // 로그인하지 않은 경우 로그인 화면 표시
+  // 로그인하지 않은 경우 로그인 화면 표시  
   if (currentUser === undefined) {
     return <div className="min-h-screen bg-slate-900 flex items-center justify-center">
       <div className="text-white">로딩 중...</div>
     </div>;
   }
   
-  if (!currentUser) {
-    return <Login />;
-  }
+  // 임시로 로그인 없이도 작동하도록 설정 (테스트용)
+  // if (!currentUser) {
+  //   return <Login />;
+  // }
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">

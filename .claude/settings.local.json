@@ -21,7 +21,9 @@
       "Bash(PORT=8080 HOST=0.0.0.0 npm start)",
       "Bash(git init:*)",
       "Bash(git remote add:*)",
-      "Bash(npx vercel:*)"
+      "Bash(npx vercel:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }
