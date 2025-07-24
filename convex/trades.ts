@@ -1,43 +1,34 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 
-// 사용자의 모든 거래 조회
+// 임시 사용자 ID (인증 없이 데모용)
+const DEMO_USER_ID = "demo-user";
+
+// 모든 거래 조회 (데모 모드)
 export const getAllTrades = query({
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      return [];
-    }
     const trades = await ctx.db
       .query("trades")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .order("desc")
       .collect();
     return trades.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   },
 });
 
-// 거래 추가
+// 거래 추가 (데모 모드)
 export const addTrade = mutation({
   args: {
+    symbol: v.string(),
+    type: v.string(),
+    quantity: v.number(),
+    price: v.number(),
     date: v.string(),
-    entry: v.number(),
-    withdrawal: v.number(),
-    balance: v.number(),
-    profit: v.number(),
-    profitRate: v.number(),
     memo: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("로그인이 필요합니다");
-    }
     const now = Date.now();
     const tradeId = await ctx.db.insert("trades", {
       ...args,
-      userId,
+      userId: DEMO_USER_ID,
       createdAt: now,
       updatedAt: now,
     });
@@ -45,28 +36,19 @@ export const addTrade = mutation({
   },
 });
 
-// 거래 수정
+// 거래 수정 (데모 모드)
 export const updateTrade = mutation({
   args: {
     id: v.id("trades"),
+    symbol: v.string(),
+    type: v.string(),
+    quantity: v.number(),
+    price: v.number(),
     date: v.string(),
-    entry: v.number(),
-    withdrawal: v.number(),
-    balance: v.number(),
-    profit: v.number(),
-    profitRate: v.number(),
     memo: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("로그인이 필요합니다");
-    }
     const { id, ...updateData } = args;
-    const trade = await ctx.db.get(id);
-    if (!trade || trade.userId !== userId) {
-      throw new Error("수정 권한이 없습니다");
-    }
     await ctx.db.patch(id, {
       ...updateData,
       updatedAt: Date.now(),
@@ -75,60 +57,22 @@ export const updateTrade = mutation({
   },
 });
 
-// 거래 삭제
+// 거래 삭제 (데모 모드)
 export const deleteTrade = mutation({
   args: { id: v.id("trades") },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("로그인이 필요합니다");
-    }
-    const trade = await ctx.db.get(args.id);
-    if (!trade || trade.userId !== userId) {
-      throw new Error("삭제 권한이 없습니다");
-    }
     await ctx.db.delete(args.id);
     return args.id;
   },
 });
 
-// 날짜 범위로 거래 조회
-export const getTradesByDateRange = query({
-  args: {
-    startDate: v.string(),
-    endDate: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      return [];
-    }
-    const trades = await ctx.db
-      .query("trades")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) =>
-        q.and(
-          q.gte(q.field("date"), args.startDate),
-          q.lte(q.field("date"), args.endDate)
-        )
-      )
-      .collect();
-    return trades.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  },
-});
-
-// 최근 거래 조회
+// 최근 거래 조회 (데모 모드)
 export const getRecentTrades = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      return [];
-    }
     const limit = args.limit || 10;
     const trades = await ctx.db
       .query("trades")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .take(limit);
     return trades.reverse(); // 날짜 순으로 정렬

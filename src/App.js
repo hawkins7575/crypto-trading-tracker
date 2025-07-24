@@ -1,23 +1,21 @@
 import React, { useState } from 'react';
 import { Home, BarChart3, Activity, BookOpen } from 'lucide-react';
+import { useTradesData, useJournalsData, useGoalsData } from './hooks/useConvexData';
 
 export default function App() {
   console.log("App component starting...");
   
   const [activeTab, setActiveTab] = useState('dashboard');
   
-  // 더미 데이터 사용
-  const trades = [];
-  const recentTrades = [];
-  const journals = [];
-  const goals = {
-    monthlyTarget: 1000000,
-    weeklyTarget: 250000,
-    yearlyTarget: 12000000,
-    targetWinRate: 70,
-  };
+  // 실제 Convex 데이터 hooks 사용 (인증 없음)
+  const { trades, recentTrades } = useTradesData();
+  const { journals } = useJournalsData();
+  const { goals } = useGoalsData();
   
-  console.log("Using dummy data - no authentication required");
+  console.log("Using real Convex data - no authentication required");
+  console.log("Trades:", trades);
+  console.log("Journals:", journals);
+  console.log("Goals:", goals);
   
   return (
     <div className="min-h-screen bg-slate-900 text-white">
@@ -28,7 +26,7 @@ export default function App() {
             <h1 className="text-xl font-bold text-white">Crypto Trading Tracker</h1>
           </div>
           <div className="text-slate-300 text-sm">
-            거래 데이터: {trades?.length || 0}개 (데모 모드)
+            거래 데이터: {trades?.length || 0}개 (실시간 DB)
           </div>
         </div>
       </div>
@@ -103,8 +101,8 @@ export default function App() {
               )}
             </div>
             
-            <div className="bg-blue-600 text-white px-6 py-3 rounded-lg inline-block">
-              🎯 데모 모드 - 앱 UI 테스트 버전
+            <div className="bg-green-600 text-white px-6 py-3 rounded-lg inline-block">
+              ✅ Convex 데이터베이스 연결 완료 - 실시간 데이터
             </div>
           </div>
         )}

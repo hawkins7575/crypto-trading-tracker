@@ -1,18 +1,14 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 
-// 현재 목표 조회
+// 임시 사용자 ID (인증 없이 데모용)
+const DEMO_USER_ID = "demo-user";
+
+// 현재 목표 조회 (데모 모드)
 export const getCurrentGoals = query({
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Client is not authenticated!");
-    }
-    
     const goals = await ctx.db
       .query("goals")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .first();
     return goals || {
