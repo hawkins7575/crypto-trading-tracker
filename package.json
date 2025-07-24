@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "@convex-dev/auth": "^0.0.87",
     "convex": "^1.25.4",
     "lucide-react": "^0.395.0",
     "react": "^18.3.1",

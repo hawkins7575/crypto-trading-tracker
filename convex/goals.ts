@@ -1,10 +1,20 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // 현재 목표 조회
 export const getCurrentGoals = query({
   handler: async (ctx) => {
-    const goals = await ctx.db.query("goals").order("desc").first();
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Client is not authenticated!");
+    }
+    
+    const goals = await ctx.db
+      .query("goals")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .first();
     return goals || {
       monthlyTarget: 1000000,
       weeklyTarget: 250000,
@@ -23,10 +33,19 @@ export const setGoals = mutation({
     targetWinRate: v.number(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Client is not authenticated!");
+    }
+    
     const now = Date.now();
     
     // 기존 목표가 있는지 확인
-    const existingGoals = await ctx.db.query("goals").order("desc").first();
+    const existingGoals = await ctx.db
+      .query("goals")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .first();
     
     if (existingGoals) {
       // 기존 목표 업데이트
@@ -39,6 +58,7 @@ export const setGoals = mutation({
       // 새 목표 생성
       const goalId = await ctx.db.insert("goals", {
         ...args,
+        userId,
         createdAt: now,
         updatedAt: now,
       });
@@ -54,7 +74,16 @@ export const getGoalsWithProgress = query({
     currentWinRate: v.number(),
   },
   handler: async (ctx, args) => {
-    const goals = await ctx.db.query("goals").order("desc").first();
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Client is not authenticated!");
+    }
+    
+    const goals = await ctx.db
+      .query("goals")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .first();
     
     if (!goals) {
       return {

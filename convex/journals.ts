@@ -1,10 +1,20 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // 모든 매매일지 조회
 export const getAllJournals = query({
   handler: async (ctx) => {
-    const journals = await ctx.db.query("tradingJournals").order("desc").collect();
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Client is not authenticated!");
+    }
+    
+    const journals = await ctx.db
+      .query("tradingJournals")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
     return journals.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   },
 });
@@ -19,9 +29,15 @@ export const addJournal = mutation({
     tags: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Client is not authenticated!");
+    }
+    
     const now = Date.now();
     const journalId = await ctx.db.insert("tradingJournals", {
       ...args,
+      userId,
       createdAt: now,
       updatedAt: now,
     });
@@ -40,7 +56,19 @@ export const updateJournal = mutation({
     tags: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Client is not authenticated!");
+    }
+    
     const { id, ...updateData } = args;
+    
+    // 소유권 확인
+    const journal = await ctx.db.get(id);
+    if (!journal || journal.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+    
     await ctx.db.patch(id, {
       ...updateData,
       updatedAt: Date.now(),
@@ -53,6 +81,17 @@ export const updateJournal = mutation({
 export const deleteJournal = mutation({
   args: { id: v.id("tradingJournals") },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Client is not authenticated!");
+    }
+    
+    // 소유권 확인
+    const journal = await ctx.db.get(args.id);
+    if (!journal || journal.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+    
     await ctx.db.delete(args.id);
     return args.id;
   },
@@ -65,11 +104,17 @@ export const getJournalsByMonth = query({
     month: v.number(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Client is not authenticated!");
+    }
+    
     const startDate = `${args.year}-${String(args.month).padStart(2, '0')}-01`;
     const endDate = `${args.year}-${String(args.month).padStart(2, '0')}-31`;
     
     const journals = await ctx.db
       .query("tradingJournals")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .filter((q) =>
         q.and(
           q.gte(q.field("date"), startDate),
@@ -85,9 +130,15 @@ export const getJournalsByMonth = query({
 export const getRecentJournals = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Client is not authenticated!");
+    }
+    
     const limit = args.limit || 5;
     const journals = await ctx.db
       .query("tradingJournals")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .take(limit);
     return journals.reverse();

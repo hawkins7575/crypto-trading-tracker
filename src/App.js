@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Download, Upload, FileText, Plus, Settings, Keyboard, Search, Edit, Trash2, MessageSquare, CheckCircle, Home, BarChart3, Activity, BookOpen, Brain, Calendar, TrendingUp, TrendingDown, DollarSign, Target, Wallet, Smartphone, X } from 'lucide-react';
+import { Download, Upload, FileText, Plus, Settings, Keyboard, Search, Edit, Trash2, MessageSquare, CheckCircle, Home, BarChart3, Activity, BookOpen, Brain, Calendar, TrendingUp, TrendingDown, DollarSign, Target, Wallet, Smartphone, X, LogOut } from 'lucide-react';
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
+import { api } from "./_generated/api";
+import Login from './components/Login';
 
 // Hooks
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
@@ -26,8 +30,12 @@ import ConvexStatus from './components/ConvexStatus';
 import { GoalModal } from './components/GoalModal';
 import { Header } from './components/Header';
 
-export default function EnhancedCoinTradingTracker() {
-  // Convex 데이터 훅 사용
+export default function App() {
+  // 인증 상태 확인
+  const currentUser = useQuery(api.auth.currentUser);
+  const { signOut } = useAuthActions();
+
+  // Convex 데이터 훅 사용 (항상 호출되어야 함)
   const { trades, recentTrades, addTrade: addTradeToDb, updateTrade: updateTradeInDb, deleteTrade: deleteTradeFromDb } = useTradesData();
   const { journals: tradingJournals, recentJournals, addJournal, updateJournal, deleteJournal } = useJournalsData();
   const { strategies: tradingStrategies, activeStrategies, addStrategy, updateStrategy, deleteStrategy } = useStrategiesData();
@@ -593,6 +601,17 @@ export default function EnhancedCoinTradingTracker() {
   const stats = { ...getStats, ...goals };
   const recentAmounts = getRecentAmounts;
 
+  // 로그인하지 않은 경우 로그인 화면 표시
+  if (currentUser === undefined) {
+    return <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="text-white">로딩 중...</div>
+    </div>;
+  }
+  
+  if (!currentUser) {
+    return <Login />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       {/* 플로팅 액션 버튼들 */}
@@ -674,6 +693,15 @@ export default function EnhancedCoinTradingTracker() {
                   <Plus size={16} className="md:w-5 md:h-5" />
                 </div>
                 <span className="text-sm md:text-base">새 거래</span>
+              </button>
+              <button
+                onClick={() => signOut()}
+                className="group flex-1 lg:flex-none bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white px-4 md:px-6 py-3 md:py-4 rounded-lg md:rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 md:gap-3 hover:scale-105 hover:shadow-xl shadow-red-500/20 transform"
+              >
+                <div className="p-1 bg-white/20 rounded-full group-hover:bg-white/30 transition-colors">
+                  <LogOut size={16} className="md:w-5 md:h-5" />
+                </div>
+                <span className="text-sm md:text-base">로그아웃</span>
               </button>
             </div>
           </div>
