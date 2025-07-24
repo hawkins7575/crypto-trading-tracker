@@ -49,7 +49,7 @@ export const TradeList = ({
           <div className="space-y-3">
             {filteredTrades.map((trade, index) => (
               <div 
-                key={trade.id} 
+                key={trade._id} 
                 className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.06] rounded-xl p-6 hover:bg-white/[0.04] hover:border-white/[0.1] transition-all duration-300 group"
               >
                 <div className="md:hidden space-y-4">
@@ -88,7 +88,7 @@ export const TradeList = ({
                       수정
                     </button>
                     <button
-                      onClick={() => deleteTrade(trade.id)}
+                      onClick={() => deleteTrade(trade._id)}
                       className="flex-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 px-4 py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
                     >
                       <Trash2 size={16} />
@@ -136,7 +136,7 @@ export const TradeList = ({
                         <Edit size={16} />
                       </button>
                       <button
-                        onClick={() => deleteTrade(trade.id)}
+                        onClick={() => deleteTrade(trade._id)}
                         className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all duration-200"
                         title="거래 삭제"
                       >

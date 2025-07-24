@@ -1,4 +1,3 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
@@ -6,23 +5,28 @@ import App from './App';
 import ErrorBoundary from './ErrorBoundary';
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 
-console.log("Starting application with Convex but without authentication...");
+// 에러 캐칭 강화
+window.addEventListener('error', (event) => {
+  console.error('Global error:', event.error);
+});
 
-// Convex 클라이언트 초기화 - 인증 없음
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+});
+
+// Convex 클라이언트 초기화 - 안전한 버전
 const convexUrl = process.env.REACT_APP_CONVEX_URL || "https://elegant-clam-570.convex.cloud";
-console.log("Convex URL:", convexUrl);
 
-let convex;
+let convex = null;
 try {
   convex = new ConvexReactClient(convexUrl);
-  console.log("Convex client created successfully");
 } catch (error) {
-  console.error("Failed to create Convex client:", error);
+  // Convex 클라이언트 생성 실패 - 폴백 모드로 동작
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
-// Convex Provider만 추가 (Auth Provider 제외)
+// Convex Provider와 함께 렌더링
 if (convex) {
   root.render(
     <React.StrictMode>

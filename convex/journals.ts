@@ -1,23 +1,22 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
-// 임시 사용자 ID (인증 없이 데모용)
-const DEMO_USER_ID = "demo-user";
-
-// 모든 매매일지 조회 (데모 모드)
+// 모든 매매일지 조회
 export const getAllJournals = query({
-  handler: async (ctx) => {
-    const journals = await ctx.db
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
       .query("tradingJournals")
-      .order("desc")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .order("asc")
       .collect();
-    return journals.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   },
 });
 
-// 매매일지 추가 (데모 모드)
+// 매매일지 추가
 export const addJournal = mutation({
   args: {
+    userId: v.string(),
     date: v.string(),
     title: v.string(),
     content: v.string(),
@@ -26,17 +25,15 @@ export const addJournal = mutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    const journalId = await ctx.db.insert("tradingJournals", {
+    return await ctx.db.insert("tradingJournals", {
       ...args,
-      userId: DEMO_USER_ID,
       createdAt: now,
       updatedAt: now,
     });
-    return journalId;
   },
 });
 
-// 매매일지 수정 (데모 모드)
+// 매매일지 수정
 export const updateJournal = mutation({
   args: {
     id: v.id("tradingJournals"),
@@ -56,7 +53,7 @@ export const updateJournal = mutation({
   },
 });
 
-// 매매일지 삭제 (데모 모드)
+// 매매일지 삭제
 export const deleteJournal = mutation({
   args: { id: v.id("tradingJournals") },
   handler: async (ctx, args) => {
@@ -68,41 +65,37 @@ export const deleteJournal = mutation({
 // 월별 매매일지 조회
 export const getJournalsByMonth = query({
   args: {
+    userId: v.string(),
     year: v.number(),
     month: v.number(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Client is not authenticated!");
-    }
-    
     const startDate = `${args.year}-${String(args.month).padStart(2, '0')}-01`;
     const endDate = `${args.year}-${String(args.month).padStart(2, '0')}-31`;
     
-    const journals = await ctx.db
+    return await ctx.db
       .query("tradingJournals")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .filter((q) =>
         q.and(
           q.gte(q.field("date"), startDate),
           q.lte(q.field("date"), endDate)
         )
       )
+      .order("asc")
       .collect();
-    return journals.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   },
 });
 
-// 최근 매매일지 조회 (데모 모드)
+// 최근 매매일지 조회
 export const getRecentJournals = query({
-  args: { limit: v.optional(v.number()) },
+  args: { userId: v.string(), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const limit = args.limit || 5;
-    const journals = await ctx.db
+    return await ctx.db
       .query("tradingJournals")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .order("desc")
       .take(limit);
-    return journals.reverse();
   },
 });

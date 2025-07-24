@@ -123,11 +123,11 @@ const TradingJournal = ({ journals, onSaveJournal, onDeleteJournal, currentMonth
   // 감정 이모지
   const getMoodEmoji = (mood) => {
     const moodEmojis = {
-      very_good: '',
-      good: '',
-      neutral: '',
-      bad: '',
-      very_bad: ''
+      very_good: '😄',
+      good: '😊',
+      neutral: '😐',
+      bad: '😟',
+      very_bad: '😠'
     };
     return moodEmojis[mood] || '';
   };
@@ -244,19 +244,19 @@ const TradingJournal = ({ journals, onSaveJournal, onDeleteJournal, currentMonth
               <label className="block text-slate-300 text-sm font-medium mb-3 uppercase tracking-wider">오늘의 성과</label>
               <div className="grid grid-cols-5 gap-3">
                 {[{
-                  value: 'very_good', label: '대성공', emoji: '' 
+                  value: 'very_good', label: '대성공', emoji: '😄' 
                 },
                 {
-                  value: 'good', label: '성공', emoji: '' 
+                  value: 'good', label: '성공', emoji: '😊' 
                 },
                 {
-                  value: 'neutral', label: '보통', emoji: '' 
+                  value: 'neutral', label: '보통', emoji: '😐' 
                 },
                 {
-                  value: 'bad', label: '아쉬움', emoji: '' 
+                  value: 'bad', label: '아쉬움', emoji: '😟' 
                 },
                 {
-                  value: 'very_bad', label: '실패', emoji: '' 
+                  value: 'very_bad', label: '실패', emoji: '😠' 
                 }].map(mood => (
                   <button
                     key={mood.value}

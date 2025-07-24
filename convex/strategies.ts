@@ -1,18 +1,13 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 
 // 모든 매매전략 조회
 export const getAllStrategies = query({
-  handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Client is not authenticated!");
-    }
-    
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
     const strategies = await ctx.db
       .query("tradingStrategies")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .order("desc")
       .collect();
     return strategies.sort((a, b) => b.updatedAt - a.updatedAt);
@@ -21,15 +16,11 @@ export const getAllStrategies = query({
 
 // 활성 매매전략 조회
 export const getActiveStrategies = query({
-  handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Client is not authenticated!");
-    }
-    
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
     const strategies = await ctx.db
       .query("tradingStrategies")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .filter((q) => q.eq(q.field("isActive"), true))
       .collect();
     return strategies.sort((a, b) => b.updatedAt - a.updatedAt);
@@ -39,26 +30,21 @@ export const getActiveStrategies = query({
 // 매매전략 추가
 export const addStrategy = mutation({
   args: {
+    userId: v.string(),
     title: v.string(),
-    type: v.string(),
+    type: v.union(v.literal('scalping'), v.literal('day'), v.literal('swing')),
     entryCondition: v.string(),
     exitCondition: v.string(),
     stopLoss: v.string(),
     riskManagement: v.string(),
     description: v.string(),
-    tags: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
     isActive: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Client is not authenticated!");
-    }
-    
     const now = Date.now();
     const strategyId = await ctx.db.insert("tradingStrategies", {
       ...args,
-      userId,
       createdAt: now,
       updatedAt: now,
     });
@@ -70,25 +56,21 @@ export const addStrategy = mutation({
 export const updateStrategy = mutation({
   args: {
     id: v.id("tradingStrategies"),
+    userId: v.string(),
     title: v.string(),
-    type: v.string(),
+    type: v.union(v.literal('scalping'), v.literal('day'), v.literal('swing')),
     entryCondition: v.string(),
     exitCondition: v.string(),
     stopLoss: v.string(),
     riskManagement: v.string(),
     description: v.string(),
-    tags: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
     isActive: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Client is not authenticated!");
-    }
+    const { id, userId, ...updateData } = args;
     
-    const { id, ...updateData } = args;
-    
-    // 소유권 확인
+    // 소유권 확인 (userId를 인자로 받으므로, 해당 userId와 일치하는지 확인)
     const strategy = await ctx.db.get(id);
     if (!strategy || strategy.userId !== userId) {
       throw new Error("Unauthorized");
@@ -104,16 +86,11 @@ export const updateStrategy = mutation({
 
 // 매매전략 삭제
 export const deleteStrategy = mutation({
-  args: { id: v.id("tradingStrategies") },
+  args: { id: v.id("tradingStrategies"), userId: v.string() },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Client is not authenticated!");
-    }
-    
     // 소유권 확인
     const strategy = await ctx.db.get(args.id);
-    if (!strategy || strategy.userId !== userId) {
+    if (!strategy || strategy.userId !== args.userId) {
       throw new Error("Unauthorized");
     }
     
@@ -126,17 +103,13 @@ export const deleteStrategy = mutation({
 export const toggleStrategyActive = mutation({
   args: {
     id: v.id("tradingStrategies"),
+    userId: v.string(),
     isActive: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Client is not authenticated!");
-    }
-    
     // 소유권 확인
     const strategy = await ctx.db.get(args.id);
-    if (!strategy || strategy.userId !== userId) {
+    if (!strategy || strategy.userId !== args.userId) {
       throw new Error("Unauthorized");
     }
     
@@ -150,16 +123,11 @@ export const toggleStrategyActive = mutation({
 
 // 전략 타입별 조회
 export const getStrategiesByType = query({
-  args: { type: v.string() },
+  args: { userId: v.string(), type: v.string() },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Client is not authenticated!");
-    }
-    
     const strategies = await ctx.db
       .query("tradingStrategies")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .filter((q) => q.eq(q.field("type"), args.type))
       .collect();
     return strategies.sort((a, b) => b.updatedAt - a.updatedAt);

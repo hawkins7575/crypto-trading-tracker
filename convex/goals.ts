@@ -1,64 +1,48 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
-// 임시 사용자 ID (인증 없이 데모용)
-const DEMO_USER_ID = "demo-user";
-
-// 현재 목표 조회 (데모 모드)
+// 현재 목표 조회
 export const getCurrentGoals = query({
-  handler: async (ctx) => {
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
     const goals = await ctx.db
       .query("goals")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .order("desc")
       .first();
-    return goals || {
-      monthlyTarget: 1000000,
-      weeklyTarget: 250000,
-      yearlyTarget: 12000000,
-      targetWinRate: 70,
-    };
+    return goals;
   },
 });
 
 // 목표 설정/업데이트
 export const setGoals = mutation({
   args: {
+    userId: v.string(),
     monthlyTarget: v.number(),
     weeklyTarget: v.number(),
     yearlyTarget: v.number(),
     targetWinRate: v.number(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Client is not authenticated!");
-    }
-    
     const now = Date.now();
-    
-    // 기존 목표가 있는지 확인
     const existingGoals = await ctx.db
       .query("goals")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .order("desc")
       .first();
     
     if (existingGoals) {
-      // 기존 목표 업데이트
       await ctx.db.patch(existingGoals._id, {
         ...args,
         updatedAt: now,
       });
       return existingGoals._id;
     } else {
-      // 새 목표 생성
-      const goalId = await ctx.db.insert("goals", {
+      return await ctx.db.insert("goals", {
         ...args,
-        userId,
         createdAt: now,
         updatedAt: now,
       });
-      return goalId;
     }
   },
 });
@@ -66,32 +50,30 @@ export const setGoals = mutation({
 // 목표 달성률 조회 (통계와 함께)
 export const getGoalsWithProgress = query({
   args: {
+    userId: v.string(),
     currentProfit: v.number(),
     currentWinRate: v.number(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Client is not authenticated!");
-    }
-    
     const goals = await ctx.db
       .query("goals")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .order("desc")
       .first();
     
     if (!goals) {
+      // 기본 목표 값 설정 (목표가 설정되지 않았을 경우)
+      const defaultGoals = {
+        monthlyTarget: 1000000,
+        weeklyTarget: 250000,
+        yearlyTarget: 12000000,
+        targetWinRate: 70,
+      };
       return {
-        goals: {
-          monthlyTarget: 1000000,
-          weeklyTarget: 250000,
-          yearlyTarget: 12000000,
-          targetWinRate: 70,
-        },
+        goals: defaultGoals,
         progress: {
-          monthlyProgress: (args.currentProfit / 1000000) * 100,
-          winRateProgress: (args.currentWinRate / 70) * 100,
+          monthlyProgress: (args.currentProfit / defaultGoals.monthlyTarget) * 100,
+          winRateProgress: (args.currentWinRate / defaultGoals.targetWinRate) * 100,
         },
       };
     }
