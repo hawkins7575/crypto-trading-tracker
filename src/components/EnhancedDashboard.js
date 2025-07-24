@@ -113,7 +113,7 @@ const EnhancedDashboard = ({ stats, trades }) => {
             value={stats.winRate}
             suffix="%"
             trend={stats.winRate >= 50 ? 'up' : 'down'}
-            target={stats.targetWinRate}
+            target={stats.targetWinRate || 70}
           />
         </div>
       </div>
@@ -139,13 +139,13 @@ const EnhancedDashboard = ({ stats, trades }) => {
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-blue-400/5 to-transparent rounded-2xl opacity-50 group-hover:opacity-70 transition-opacity duration-300"></div>
           <div className="relative z-10">
             <CircularProgress 
-              value={Math.min((stats.winRate / stats.targetWinRate) * 100, 100)} 
+              value={Math.min((stats.winRate / (stats.targetWinRate || 70)) * 100, 100)} 
               color="#3B82F6"
             />
             <div className="mt-4 space-y-2">
               <p className="text-blue-300 text-sm font-bold uppercase tracking-widest">목표 승률 달성률</p>
               <div className="w-12 h-0.5 bg-gradient-to-r from-transparent via-blue-400 to-transparent mx-auto"></div>
-              <p className="text-white font-mono text-xl font-black">{stats.targetWinRate}%</p>
+              <p className="text-white font-mono text-xl font-black">{(stats.targetWinRate || 70)}%</p>
             </div>
           </div>
         </div>
