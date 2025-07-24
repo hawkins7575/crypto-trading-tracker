@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
-import App from './App';
+import SimpleApp from './SimpleApp';
 import ErrorBoundary from './ErrorBoundary';
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 
@@ -32,7 +32,7 @@ if (convex) {
     <React.StrictMode>
       <ErrorBoundary>
         <ConvexProvider client={convex}>
-          <App />
+          <SimpleApp />
         </ConvexProvider>
       </ErrorBoundary>
     </React.StrictMode>
@@ -41,7 +41,7 @@ if (convex) {
   root.render(
     <React.StrictMode>
       <ErrorBoundary>
-        <App />
+        <SimpleApp />
       </ErrorBoundary>
     </React.StrictMode>
   );
