@@ -1,0 +1,1506 @@
+import React, { useState, useEffect, useCallback, useMemo, createContext, useContext, useReducer } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell } from 'recharts';
+import { Calendar, TrendingUp, TrendingDown, DollarSign, Plus, Trash2, Edit, Download, Upload, FileText, Save, BarChart3, Activity, Settings, Wallet, MessageSquare, X, CheckCircle, Eye, EyeOff, Search, Filter, Camera, Target, Clock, Star, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Home, BookOpen, Brain, Keyboard, Mouse, Smartphone, AlertCircle } from 'lucide-react';
+
+// ==================== CONSTANTS ====================
+const TIME_CONSTANTS = {
+  TOAST_DURATION: 3000,
+  ANIMATION_DURATION: 1500,
+  DEBOUNCE_DELAY: 300,
+};
+
+const COLORS = {
+  SUCCESS: '#34D399',
+  ERROR: '#F87171',
+  WARNING: '#FBBF24',
+  INFO: '#60A5FA',
+  PROFIT: '#34D399',
+  LOSS: '#F87171',
+  BALANCE: '#60A5FA',
+};
+
+const DEFAULT_GOALS = {
+  monthlyTarget: 1000000,
+  weeklyTarget: 250000,
+  targetWinRate: 70,
+  yearlyTarget: 12000000,
+};
+
+const FILTER_OPTIONS = {
+  ALL: 'all',
+  PROFIT: 'profit',
+  LOSS: 'loss',
+  THIS_WEEK: 'thisWeek',
+  LARGE: 'large',
+};
+
+const TABS = {
+  DASHBOARD: 'dashboard',
+  ANALYTICS: 'analytics',
+  TRADES: 'trades',
+};
+
+const ACTIONS = {
+  SET_TRADES: 'SET_TRADES',
+  ADD_TRADE: 'ADD_TRADE',
+  UPDATE_TRADE: 'UPDATE_TRADE',
+  DELETE_TRADE: 'DELETE_TRADE',
+  SET_GOALS: 'SET_GOALS',
+  SET_STRATEGIES: 'SET_STRATEGIES',
+  ADD_STRATEGY: 'ADD_STRATEGY',
+  UPDATE_STRATEGY: 'UPDATE_STRATEGY',
+  DELETE_STRATEGY: 'DELETE_STRATEGY',
+  SET_ACTIVE_TAB: 'SET_ACTIVE_TAB',
+  SET_SHOW_FORM: 'SET_SHOW_FORM',
+  SET_SHOW_GOAL_MODAL: 'SET_SHOW_GOAL_MODAL',
+  SET_SHOW_STRATEGIES_MODAL: 'SET_SHOW_STRATEGIES_MODAL',
+  SET_SHOW_MEMO_MODAL: 'SET_SHOW_MEMO_MODAL',
+  SET_SEARCH_QUERY: 'SET_SEARCH_QUERY',
+  SET_EDITING_TRADE: 'SET_EDITING_TRADE',
+  SET_CURRENT_TRADE: 'SET_CURRENT_TRADE',
+  SET_EDITING_STRATEGY: 'SET_EDITING_STRATEGY',
+  SET_CURRENT_STRATEGY: 'SET_CURRENT_STRATEGY',
+  RESET_EDITING: 'RESET_EDITING',
+  SET_CURRENT_MEMO: 'SET_CURRENT_MEMO',
+  SET_SELECTED_DATE: 'SET_SELECTED_DATE',
+};
+
+// ==================== UTILS ====================
+const formatCurrency = (amount, prefix = '₩') => {
+  if (amount === null || amount === undefined) return `${prefix}0`;
+  return `${prefix}${Math.abs(amount).toLocaleString()}`;
+};
+
+const formatPercentage = (rate, showSign = true) => {
+  if (rate === null || rate === undefined) return '0%';
+  const sign = showSign && rate >= 0 ? '+' : '';
+  return `${sign}${rate}%`;
+};
+
+const getProfitColorClass = (value) => {
+  if (value > 0) return 'text-emerald-400';
+  if (value < 0) return 'text-red-400';
+  return 'text-slate-400';
+};
+
+// ==================== HOOKS ====================
+const useKeyboardShortcuts = (handlers) => {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const key = `${event.ctrlKey ? 'Ctrl+' : ''}${event.shiftKey ? 'Shift+' : ''}${event.key}`;
+      if (handlers[key]) {
+        event.preventDefault();
+        handlers[key]();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handlers]);
+};
+
+const useTradeCalculations = (trades, goals = DEFAULT_GOALS) => {
+  const calculateCumulativeData = useCallback(() => {
+    if (trades.length === 0) return [];
+    
+    let cumulativeProfit = 0;
+    let totalInvested = 0;
+    
+    return trades.map((trade, index) => {
+      cumulativeProfit += trade.profit || 0;
+      totalInvested += trade.entry || 0;
+      
+      const cumulativeRate = totalInvested > 0 ? (cumulativeProfit / totalInvested) * 100 : 0;
+      
+      return {
+        ...trade,
+        cumulativeProfit,
+        cumulativeRate: parseFloat(cumulativeRate.toFixed(2)),
+        tradeNumber: index + 1
+      };
+    });
+  }, [trades]);
+
+  const calculateProfitAndRate = useCallback((entry, withdrawal, balance, prevBalance = 0) => {
+    const entryAmount = parseFloat(entry) || 0;
+    const withdrawalAmount = parseFloat(withdrawal) || 0;
+    const balanceAmount = parseFloat(balance) || 0;
+    
+    if (balanceAmount < 0) {
+      return { profit: 0, profitRate: 0, error: '잔고는 0 이상이어야 합니다' };
+    }
+    
+    const netFlow = entryAmount - withdrawalAmount;
+    const expectedBalance = prevBalance + netFlow;
+    const profit = balanceAmount - expectedBalance;
+    
+    let profitRate = 0;
+    const base = prevBalance + entryAmount;
+    if (base > 0) {
+      profitRate = (profit / base) * 100;
+    }
+    
+    return { 
+      profit: parseFloat(profit.toFixed(2)), 
+      profitRate: parseFloat(profitRate.toFixed(2)),
+      error: null 
+    };
+  }, []);
+
+  const getStats = useMemo(() => {
+    if (trades.length === 0) {
+      return {
+        totalProfit: 0,
+        totalInvested: 0,
+        totalWithdrawal: 0,
+        currentBalance: 0,
+        totalProfitRate: 0,
+        winRate: 0,
+        totalTrades: 0,
+        avgProfit: 0,
+        bestTrade: 0,
+        worstTrade: 0,
+        monthlyTarget: goals.monthlyTarget,
+        weeklyTarget: goals.weeklyTarget,
+        targetWinRate: goals.targetWinRate,
+        yearlyTarget: goals.yearlyTarget
+      };
+    }
+
+    const totalProfit = trades.reduce((sum, trade) => sum + (trade.profit || 0), 0);
+    const totalInvested = trades.reduce((sum, trade) => sum + (trade.entry || 0), 0);
+    const totalWithdrawal = trades.reduce((sum, trade) => sum + (trade.withdrawal || 0), 0);
+    const currentBalance = trades.length > 0 ? trades[trades.length - 1].balance : 0;
+    const netInvestment = totalInvested - totalWithdrawal;
+    const totalProfitRate = netInvestment > 0 ? (totalProfit / netInvestment) * 100 : 0;
+    const winningTrades = trades.filter(trade => (trade.profit || 0) > 0).length;
+    const winRate = (winningTrades / trades.length) * 100;
+    const avgProfit = totalProfit / trades.length;
+    const profits = trades.map(t => t.profit || 0);
+    const bestTrade = profits.length > 0 ? Math.max(...profits) : 0;
+    const worstTrade = profits.length > 0 ? Math.min(...profits) : 0;
+
+    return {
+      totalProfit: parseFloat(totalProfit.toFixed(2)),
+      totalInvested: parseFloat(totalInvested.toFixed(2)),
+      totalWithdrawal: parseFloat(totalWithdrawal.toFixed(2)),
+      currentBalance: parseFloat(currentBalance.toFixed(2)),
+      totalProfitRate: parseFloat(totalProfitRate.toFixed(2)),
+      winRate: parseFloat(winRate.toFixed(1)),
+      totalTrades: trades.length,
+      avgProfit: parseFloat(avgProfit.toFixed(2)),
+      bestTrade: parseFloat(bestTrade.toFixed(2)),
+      worstTrade: parseFloat(worstTrade.toFixed(2)),
+      monthlyTarget: goals.monthlyTarget,
+      weeklyTarget: goals.weeklyTarget,
+      targetWinRate: goals.targetWinRate,
+      yearlyTarget: goals.yearlyTarget
+    };
+  }, [trades, goals]);
+
+  return { calculateCumulativeData, calculateProfitAndRate, getStats };
+};
+
+const useToast = () => {
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = useCallback((message, type = 'info') => {
+    const id = Date.now();
+    const newToast = { id, message, type };
+    
+    setToasts(prev => [...prev, newToast]);
+    
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id));
+    }, TIME_CONSTANTS.TOAST_DURATION);
+  }, []);
+
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  }, []);
+
+  return { toasts, addToast, removeToast };
+};
+
+const useTradeFilter = (trades, searchQuery = '', activeFilter = 'all') => {
+  const filteredTrades = useMemo(() => {
+    let filtered = [...trades];
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(trade => 
+        trade.memo?.toLowerCase().includes(query) ||
+        trade.date.includes(query) ||
+        trade.entry?.toString().includes(query) ||
+        trade.withdrawal?.toString().includes(query) ||
+        trade.balance?.toString().includes(query)
+      );
+    }
+    
+    switch (activeFilter) {
+      case FILTER_OPTIONS.PROFIT:
+        filtered = filtered.filter(t => (t.profit || 0) > 0);
+        break;
+      case FILTER_OPTIONS.LOSS:
+        filtered = filtered.filter(t => (t.profit || 0) < 0);
+        break;
+      case FILTER_OPTIONS.THIS_WEEK:
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        filtered = filtered.filter(t => new Date(t.date) >= weekAgo);
+        break;
+      case FILTER_OPTIONS.LARGE:
+        filtered = filtered.filter(t => (t.entry || 0) >= 1000000);
+        break;
+      default:
+        break;
+    }
+    
+    return filtered;
+  }, [trades, searchQuery, activeFilter]);
+
+  return { filteredTrades };
+};
+
+// ==================== CONTEXT ====================
+const initialState = {
+  trades: [],
+  goals: DEFAULT_GOALS,
+  strategies: [],
+  activeTab: TABS.DASHBOARD,
+  filters: {
+    searchQuery: '',
+    activeFilter: FILTER_OPTIONS.ALL,
+  },
+  ui: {
+    showForm: false,
+    showGoalModal: false,
+    showStrategiesModal: false,
+    showMemoModal: false,
+  },
+  editing: {
+    editingTrade: null,
+    editingStrategy: null,
+    currentTrade: {
+      date: new Date().toISOString().split('T')[0],
+      entry: '',
+      withdrawal: '',
+      balance: '',
+      profit: '',
+      profitRate: '',
+      memo: ''
+    },
+    currentStrategy: {
+      name: '',
+      description: '',
+      entryCondition: '',
+      exitCondition: '',
+      isActive: false
+    },
+  },
+  memo: {
+    currentMemo: '',
+    selectedDate: null,
+  }
+};
+
+const tradingReducer = (state, action) => {
+  switch (action.type) {
+    case ACTIONS.SET_TRADES:
+      return { ...state, trades: action.payload };
+    case ACTIONS.ADD_TRADE:
+      const newTrades = [...state.trades, action.payload].sort((a, b) => new Date(a.date) - new Date(b.date));
+      return { ...state, trades: newTrades };
+    case ACTIONS.UPDATE_TRADE:
+      const updatedTrades = state.trades.map(trade => 
+        trade.id === action.payload.id ? action.payload : trade
+      );
+      return { ...state, trades: updatedTrades };
+    case ACTIONS.DELETE_TRADE:
+      return { 
+        ...state, 
+        trades: state.trades.filter(trade => trade.id !== action.payload) 
+      };
+    case ACTIONS.SET_GOALS:
+      return { ...state, goals: action.payload };
+    case ACTIONS.SET_STRATEGIES:
+      return { ...state, strategies: action.payload };
+    case ACTIONS.ADD_STRATEGY:
+      return { 
+        ...state, 
+        strategies: [...state.strategies, action.payload] 
+      };
+    case ACTIONS.UPDATE_STRATEGY:
+      const updatedStrategies = state.strategies.map(strategy => 
+        strategy.id === action.payload.id ? action.payload : strategy
+      );
+      return { ...state, strategies: updatedStrategies };
+    case ACTIONS.DELETE_STRATEGY:
+      return { 
+        ...state, 
+        strategies: state.strategies.filter(strategy => strategy.id !== action.payload) 
+      };
+    case ACTIONS.SET_ACTIVE_TAB:
+      return { ...state, activeTab: action.payload };
+    case ACTIONS.SET_SHOW_FORM:
+      return { 
+        ...state, 
+        ui: { ...state.ui, showForm: action.payload } 
+      };
+    case ACTIONS.SET_SHOW_GOAL_MODAL:
+      return { 
+        ...state, 
+        ui: { ...state.ui, showGoalModal: action.payload } 
+      };
+    case ACTIONS.SET_SHOW_STRATEGIES_MODAL:
+      return { 
+        ...state, 
+        ui: { ...state.ui, showStrategiesModal: action.payload } 
+      };
+    case ACTIONS.SET_SHOW_MEMO_MODAL:
+      return { 
+        ...state, 
+        ui: { ...state.ui, showMemoModal: action.payload } 
+      };
+    case ACTIONS.SET_SEARCH_QUERY:
+      return { 
+        ...state, 
+        filters: { ...state.filters, searchQuery: action.payload } 
+      };
+    case ACTIONS.SET_EDITING_TRADE:
+      return { 
+        ...state, 
+        editing: { ...state.editing, editingTrade: action.payload } 
+      };
+    case ACTIONS.SET_CURRENT_TRADE:
+      return { 
+        ...state, 
+        editing: { ...state.editing, currentTrade: action.payload } 
+      };
+    case ACTIONS.SET_EDITING_STRATEGY:
+      return { 
+        ...state, 
+        editing: { ...state.editing, editingStrategy: action.payload } 
+      };
+    case ACTIONS.SET_CURRENT_STRATEGY:
+      return { 
+        ...state, 
+        editing: { ...state.editing, currentStrategy: action.payload } 
+      };
+    case ACTIONS.RESET_EDITING:
+      return {
+        ...state,
+        editing: {
+          ...state.editing,
+          editingTrade: null,
+          editingStrategy: null,
+          currentTrade: {
+            date: new Date().toISOString().split('T')[0],
+            entry: '',
+            withdrawal: '',
+            balance: '',
+            profit: '',
+            profitRate: '',
+            memo: ''
+          },
+          currentStrategy: {
+            name: '',
+            description: '',
+            entryCondition: '',
+            exitCondition: '',
+            isActive: false
+          }
+        }
+      };
+    case ACTIONS.SET_CURRENT_MEMO:
+      return { 
+        ...state, 
+        memo: { ...state.memo, currentMemo: action.payload } 
+      };
+    case ACTIONS.SET_SELECTED_DATE:
+      return { 
+        ...state, 
+        memo: { ...state.memo, selectedDate: action.payload } 
+      };
+    default:
+      return state;
+  }
+};
+
+const TradingContext = createContext();
+
+const TradingProvider = ({ children }) => {
+  const [state, dispatch] = useReducer(tradingReducer, initialState);
+  return (
+    <TradingContext.Provider value={{ state, dispatch }}>
+      {children}
+    </TradingContext.Provider>
+  );
+};
+
+const useTrading = () => {
+  const context = useContext(TradingContext);
+  if (!context) {
+    throw new Error('useTrading must be used within a TradingProvider');
+  }
+  return context;
+};
+
+// ==================== COMPONENTS ====================
+const Toast = ({ toast, onRemove }) => {
+  const bgColor = {
+    success: 'bg-emerald-600',
+    error: 'bg-red-600',
+    warning: 'bg-amber-600',
+    info: 'bg-blue-600'
+  }[toast.type];
+
+  const icon = {
+    success: <CheckCircle size={16} />,
+    error: <AlertCircle size={16} />,
+    warning: <AlertCircle size={16} />,
+    info: <MessageSquare size={16} />
+  }[toast.type];
+
+  return (
+    <div className={`${bgColor} text-white px-6 py-3 rounded-lg shadow-2xl flex items-center justify-between w-full sm:min-w-96 border-l-4 border-white/20 transform transition-all duration-300 ease-out`}>
+      <div className="flex items-center gap-3">
+        {icon}
+        <span className="font-medium">{toast.message}</span>
+      </div>
+      <button onClick={() => onRemove(toast.id)} className="ml-3 hover:bg-white/10 p-1 rounded">
+        <X size={16} />
+      </button>
+    </div>
+  );
+};
+
+const CircularProgress = ({ value, size = 60, strokeWidth = 6, color = "#34D399" }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const strokeDasharray = `${(value / 100) * circumference} ${circumference}`;
+
+  return (
+    <div className="relative inline-flex items-center justify-center">
+      <svg width={size} height={size} className="transform -rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="rgba(148, 163, 184, 0.1)"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={strokeDasharray}
+          strokeLinecap="round"
+          className="transition-all duration-700 ease-out"
+          style={{
+            filter: `drop-shadow(0 0 4px ${color}40)`
+          }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-sm font-semibold text-white">
+            {Math.round(value)}%
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EnhancedStatsCard = ({ 
+  icon: Icon, 
+  title, 
+  value, 
+  change, 
+  prefix = '', 
+  suffix = '', 
+  trend = 'neutral', 
+  target 
+}) => {
+  const getTrendColor = () => {
+    if (trend === 'up') return 'text-emerald-400';
+    if (trend === 'down') return 'text-red-400';
+    return 'text-slate-500';
+  };
+
+  const progress = target ? Math.min((Math.abs(value) / target) * 100, 100) : 0;
+
+  return (
+    <div className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-xl p-4 hover:bg-white/[0.04] transition-all duration-300 group">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-700/50 group-hover:border-slate-600/50 transition-colors">
+            <Icon className="h-4 w-4 text-slate-400" />
+          </div>
+          <h3 className="text-slate-400 text-xs font-medium tracking-wide">{title}</h3>
+        </div>
+      </div>
+
+      <div className="mb-3">
+        <div className="text-white text-xl font-semibold tracking-tight mb-1">
+          {prefix}{typeof value === 'number' ? value.toLocaleString() : value}{suffix}
+        </div>
+        
+        {change !== undefined && (
+          <div className={`flex items-center gap-1 text-xs ${getTrendColor()}`}>
+            {trend === 'up' && <TrendingUp size={12} />}
+            {trend === 'down' && <TrendingDown size={12} />}
+            <span className="font-medium">{change >= 0 ? '+' : ''}{change}%</span>
+            <span className="text-slate-500 text-xs">vs 이전</span>
+          </div>
+        )}
+      </div>
+        
+      {target && (
+        <div className="space-y-2">
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-slate-500">목표</span>
+            <span className="text-slate-400 font-medium">{progress.toFixed(0)}%</span>
+          </div>
+          <div className="w-full bg-slate-800/50 rounded-full h-1 overflow-hidden">
+            <div 
+              className={`h-full rounded-full transition-all duration-700 ease-out ${
+                progress >= 100 ? 'bg-emerald-400' : progress >= 50 ? 'bg-blue-400' : 'bg-amber-400'
+              }`}
+              style={{ width: `${Math.min(progress, 100)}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TradeForm = ({ 
+  showForm, 
+  currentTrade, 
+  setCurrentTrade, 
+  editingTrade, 
+  formErrors, 
+  isSubmitting, 
+  onSubmit, 
+  onCancel 
+}) => {
+  if (!showForm) return null;
+
+  return (
+    <div className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-8">
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+            <Plus className="h-6 w-6 text-blue-400" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold text-white">
+              {editingTrade ? '거래 수정' : '새 거래'}
+            </h2>
+            <p className="text-slate-400">거래 정보를 입력하고 수익률을 확인하세요</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+        <div>
+          <label className="block text-slate-300 text-sm font-medium mb-3 tracking-wide">날짜 *</label>
+          <input
+            type="date"
+            value={currentTrade.date}
+            onChange={(e) => setCurrentTrade({...currentTrade, date: e.target.value})}
+            max={new Date().toISOString().split('T')[0]}
+            className={`w-full bg-slate-800/50 border rounded-xl px-4 py-3 text-white font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+              formErrors.date ? 'border-red-500' : 'border-slate-600/50'
+            }`}
+          />
+          {formErrors.date && <p className="text-red-400 text-xs mt-2">{formErrors.date}</p>}
+        </div>
+        
+        <div>
+          <label className="block text-slate-300 text-sm font-medium mb-3 tracking-wide">입금</label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400">₩</span>
+            <input
+              type="number"
+              placeholder="0"
+              value={currentTrade.entry}
+              onChange={(e) => setCurrentTrade({...currentTrade, entry: e.target.value})}
+              className={`w-full bg-slate-800/50 border rounded-xl pl-8 pr-4 py-3 text-white font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                formErrors.entry ? 'border-red-500' : 'border-slate-600/50'
+              }`}
+            />
+          </div>
+          {formErrors.entry && <p className="text-red-400 text-xs mt-2">{formErrors.entry}</p>}
+        </div>
+        
+        <div>
+          <label className="block text-slate-300 text-sm font-medium mb-3 tracking-wide">출금</label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400">₩</span>
+            <input
+              type="number"
+              placeholder="0"
+              value={currentTrade.withdrawal}
+              onChange={(e) => setCurrentTrade({...currentTrade, withdrawal: e.target.value})}
+              className={`w-full bg-slate-800/50 border rounded-xl pl-8 pr-4 py-3 text-white font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                formErrors.withdrawal ? 'border-red-500' : 'border-slate-600/50'
+              }`}
+            />
+          </div>
+          {formErrors.withdrawal && <p className="text-red-400 text-xs mt-2">{formErrors.withdrawal}</p>}
+        </div>
+        
+        <div>
+          <label className="block text-slate-300 text-sm font-medium mb-3 tracking-wide">잔고 *</label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400">₩</span>
+            <input
+              type="number"
+              placeholder="현재 잔고"
+              value={currentTrade.balance}
+              onChange={(e) => setCurrentTrade({...currentTrade, balance: e.target.value})}
+              className={`w-full bg-slate-800/50 border rounded-xl pl-8 pr-4 py-3 text-white font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                formErrors.balance ? 'border-red-500' : 'border-slate-600/50'
+              }`}
+            />
+          </div>
+          {formErrors.balance && <p className="text-red-400 text-xs mt-2">{formErrors.balance}</p>}
+        </div>
+        
+        <div>
+          <label className="block text-slate-300 text-sm font-medium mb-3 tracking-wide">수익금</label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400">₩</span>
+            <input
+              type="text"
+              value={currentTrade.profit || 0}
+              readOnly
+              className={`w-full bg-slate-700/50 border border-slate-600/30 rounded-xl pl-8 pr-4 py-3 font-mono font-bold ${
+                parseFloat(currentTrade.profit) >= 0 ? 'text-emerald-400' : 'text-red-400'
+              }`}
+            />
+          </div>
+        </div>
+        
+        <div>
+          <label className="block text-slate-300 text-sm font-medium mb-3 tracking-wide">수익률 %</label>
+          <input
+            type="text"
+            value={`${currentTrade.profitRate || 0}%`}
+            readOnly
+            className={`w-full bg-slate-700/50 border border-slate-600/30 rounded-xl px-4 py-3 font-mono font-bold ${
+              parseFloat(currentTrade.profitRate) >= 0 ? 'text-emerald-400' : 'text-red-400'
+            }`}
+          />
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <label className="block text-slate-300 text-sm font-medium mb-3 tracking-wide">거래 메모</label>
+        <textarea
+          placeholder="거래 분석, 시장 상황, 전략 메모 등을 입력하세요..."
+          value={currentTrade.memo || ''}
+          onChange={(e) => setCurrentTrade({...currentTrade, memo: e.target.value})}
+          className="w-full bg-slate-800/50 border border-slate-600/50 rounded-xl px-4 py-4 text-white h-28 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+        />
+      </div>
+      
+      <div className="flex gap-4">
+        <button
+          onClick={onSubmit}
+          disabled={isSubmitting}
+          className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-4 rounded-xl font-medium transition-all duration-200 flex-1 flex items-center justify-center gap-3"
+        >
+          {isSubmitting ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              처리 중...
+            </>
+          ) : (
+            <>
+              <Save size={20} />
+              {editingTrade ? '거래 수정' : '거래 추가'}
+            </>
+          )}
+        </button>
+        <button
+          onClick={onCancel}
+          className="bg-slate-700 hover:bg-slate-600 text-white px-8 py-4 rounded-xl font-medium transition-all duration-200 flex-1 flex items-center justify-center gap-3"
+        >
+          <X size={20} />
+          취소
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const ChartSection = ({ trades, cumulativeData, stats, setShowForm }) => {
+  const profitDistribution = useMemo(() => {
+    const profits = trades.map(t => t.profit || 0);
+    const positive = profits.filter(p => p > 0).length;
+    const negative = profits.filter(p => p < 0).length;
+    const neutral = profits.filter(p => p === 0).length;
+    
+    return [
+      { name: '수익', value: positive, color: '#34D399' },
+      { name: '손실', value: negative, color: '#F87171' },
+      { name: '보합', value: neutral, color: '#94A3B8' }
+    ];
+  }, [trades]);
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      {/* 메인 성과 차트 */}
+      <div className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-xl font-semibold text-white mb-2">포트폴리오 성과</h3>
+            <p className="text-slate-400 text-sm">시간별 수익률 변화</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+              <span className="text-slate-400 text-xs">잔고</span>
+            </div>
+          </div>
+        </div>
+        
+        {trades.length > 0 ? (
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={cumulativeData}>
+                <defs>
+                  <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#60A5FA" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#60A5FA" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" strokeOpacity={0.3} />
+                <XAxis 
+                  dataKey="date" 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94A3B8', fontSize: 12 }}
+                  tickMargin={8}
+                  tickFormatter={(value) => new Date(value).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94A3B8', fontSize: 12 }}
+                  tickMargin={8}
+                  tickFormatter={(value) => `₩${(value / 1000000).toFixed(1)}M`}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                    border: '1px solid rgba(148, 163, 184, 0.2)', 
+                    borderRadius: '12px',
+                    color: '#fff',
+                    backdropFilter: 'blur(8px)',
+                    fontSize: '13px'
+                  }}
+                  formatter={(value, name) => [
+                    `₩${value.toLocaleString()}`,
+                    '잔고'
+                  ]}
+                  labelFormatter={(label) => new Date(label).toLocaleDateString('ko-KR')}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="balance" 
+                  stroke="#60A5FA" 
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorBalance)"
+                  name="balance"
+                  animationDuration={1500}
+                  animationEasing="ease-out"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="text-center py-20">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-slate-800/30 flex items-center justify-center">
+              <BarChart3 className="h-8 w-8 text-slate-500" />
+            </div>
+            <p className="text-slate-400 text-xl mb-2 font-medium">거래 데이터가 없습니다</p>
+            <p className="text-slate-500 text-base">첫 거래를 추가하여 시작하세요</p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="mt-6 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 flex items-center gap-2 mx-auto"
+            >
+              <Plus size={18} />
+              첫 거래 추가
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 사이드 패널 */}
+      <div className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h4 className="text-lg font-semibold text-white">성과 요약</h4>
+          <div className="text-xs text-slate-500 bg-slate-800/30 px-2 py-1 rounded-lg">
+            실시간
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-6">
+          {/* 목표 달성률 */}
+          <div className="text-center group hover:scale-105 transition-transform duration-200">
+            <div className="relative">
+              <CircularProgress 
+                value={Math.min((Math.abs(stats.totalProfit) / stats.monthlyTarget) * 100, 100)} 
+                color="#34D399"
+                size={70}
+                strokeWidth={5}
+              />
+            </div>
+            <p className="text-slate-400 text-xs mt-3 mb-1">목표 달성률</p>
+            <p className="text-white font-semibold text-sm">₩{stats.monthlyTarget.toLocaleString()}</p>
+            <div className="text-xs text-slate-500 mt-1">
+              월간 목표
+            </div>
+          </div>
+
+          {/* 승률 현황 */}
+          <div className="text-center group hover:scale-105 transition-transform duration-200">
+            <div className="relative">
+              <CircularProgress 
+                value={Math.min((stats.winRate / stats.targetWinRate) * 100, 100)} 
+                color="#60A5FA"
+                size={70}
+                strokeWidth={5}
+              />
+            </div>
+            <p className="text-slate-400 text-xs mt-3 mb-1">승률 현황</p>
+            <p className="text-white font-semibold text-sm">{stats.winRate}% / {stats.targetWinRate}%</p>
+            <div className="text-xs text-slate-500 mt-1">
+              현재 / 목표
+            </div>
+          </div>
+
+          {/* 거래 분포 */}
+          <div className="text-center group hover:scale-105 transition-transform duration-200">
+            <div className="h-16 mb-2 relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={profitDistribution}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={18}
+                    outerRadius={32}
+                    dataKey="value"
+                    animationBegin={0}
+                    animationDuration={800}
+                  >
+                    {profitDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      borderRadius: '6px',
+                      color: '#fff',
+                      fontSize: '11px'
+                    }}
+                    formatter={(value, name) => [value, name]} 
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs font-bold text-white">
+                  {trades.length}
+                </span>
+              </div>
+            </div>
+            <p className="text-slate-400 text-xs mb-1">거래 분포</p>
+            <div className="flex justify-center gap-2 mb-1">
+              {profitDistribution.slice(0, 2).map((entry, index) => (
+                <div key={index} className="flex items-center gap-1">
+                  <div 
+                    className="w-1.5 h-1.5 rounded-full" 
+                    style={{ backgroundColor: entry.color }}
+                  ></div>
+                  <span className="text-slate-400 text-xs">{entry.name}</span>
+                </div>
+              ))}
+            </div>
+            <div className="text-xs text-slate-500">
+              총 거래
+            </div>
+          </div>
+        </div>
+        
+        {/* 추가 통계 정보 */}
+        <div className="mt-6 pt-6 border-t border-white/[0.08]">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center p-3 bg-slate-800/30 rounded-lg">
+              <div className="text-emerald-400 font-bold text-lg">
+                ₩{Math.abs(stats.bestTrade).toLocaleString()}
+              </div>
+              <div className="text-xs text-slate-400">최대 수익</div>
+            </div>
+            <div className="text-center p-3 bg-slate-800/30 rounded-lg">
+              <div className="text-blue-400 font-bold text-lg">
+                ₩{Math.abs(stats.avgProfit).toLocaleString()}
+              </div>
+              <div className="text-xs text-slate-400">평균 수익</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Header = ({ 
+  activeTab, 
+  setActiveTab, 
+  setShowForm, 
+  setShowStrategiesModal, 
+  setShowGoalModal 
+}) => {
+  const tabs = [
+    { id: TABS.DASHBOARD, name: '대시보드', icon: Home },
+    { id: TABS.ANALYTICS, name: '분석', icon: BarChart3 },
+    { id: TABS.TRADES, name: '거래내역', icon: Activity }
+  ];
+
+  return (
+    <div className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-xl p-5">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-white mb-1 tracking-tight">
+            트레이딩데스크 프로 <span className="text-blue-400 font-medium">v4.0</span>
+          </h1>
+          <p className="text-slate-400">전문 암호화폐 거래 관리 플랫폼</p>
+        </div>
+        
+        <div className="flex gap-2 w-full lg:w-auto">
+          <button
+            onClick={() => setShowStrategiesModal(true)}
+            className="flex-1 lg:flex-none bg-purple-500 hover:bg-purple-600 text-white px-4 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 justify-center text-sm"
+          >
+            <Brain size={16} />
+            전략
+          </button>
+          <button
+            onClick={() => setShowGoalModal(true)}
+            className="flex-1 lg:flex-none bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 justify-center text-sm"
+          >
+            <Target size={16} />
+            목표
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex-1 lg:flex-none bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 justify-center text-sm"
+          >
+            <Plus size={16} />
+            새 거래
+          </button>
+        </div>
+      </div>
+
+      <div className="flex border-b border-white/[0.08] overflow-x-auto">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-6 py-3 font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-2 text-sm ${
+              activeTab === tab.id 
+                ? 'border-b-2 border-blue-400 text-blue-400 bg-blue-400/5' 
+                : 'text-slate-400 hover:text-white hover:bg-white/[0.02]'
+            }`}
+          >
+            <tab.icon size={16} />
+            {tab.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const AnalyticsTab = () => {
+  return (
+    <div className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-8">
+      <div className="text-center py-32">
+        <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-slate-800/30 flex items-center justify-center">
+          <BarChart3 className="h-10 w-10 text-slate-500" />
+        </div>
+        <p className="text-slate-400 text-2xl mb-3 font-medium">고급 분석 기능</p>
+        <p className="text-slate-500 text-lg mb-6">상세한 분석 도구를 준비 중입니다</p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto mt-12">
+          <div className="bg-slate-800/20 rounded-xl p-6 border border-slate-700/30">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-blue-500/10 flex items-center justify-center">
+              <BarChart3 className="h-6 w-6 text-blue-400" />
+            </div>
+            <h3 className="text-white font-semibold mb-2">손익분기점 분석</h3>
+            <p className="text-slate-400 text-sm">투자 회수를 위한 최소 수익률 계산</p>
+          </div>
+          
+          <div className="bg-slate-800/20 rounded-xl p-6 border border-slate-700/30">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+              <BarChart3 className="h-6 w-6 text-emerald-400" />
+            </div>
+            <h3 className="text-white font-semibold mb-2">리스크 관리</h3>
+            <p className="text-slate-400 text-sm">포트폴리오 위험도 측정 및 관리</p>
+          </div>
+          
+          <div className="bg-slate-800/20 rounded-xl p-6 border border-slate-700/30">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-purple-500/10 flex items-center justify-center">
+              <BarChart3 className="h-6 w-6 text-purple-400" />
+            </div>
+            <h3 className="text-white font-semibold mb-2">성과 벤치마킹</h3>
+            <p className="text-slate-400 text-sm">시장 대비 성과 비교 분석</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TradeList = ({ 
+  filteredTrades, 
+  trades,
+  searchQuery, 
+  setSearchQuery,
+  startEditTrade,
+  deleteTrade
+}) => {
+  return (
+    <div className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-6">
+        <div>
+          <h2 className="text-3xl font-semibold text-white mb-2 tracking-tight">거래 내역</h2>
+          <p className="text-slate-400 text-lg">모든 거래 활동의 완전한 기록</p>
+        </div>
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="거래 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-800/50 border border-slate-600/50 rounded-xl pl-12 pr-4 py-3 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+          </div>
+          <div className="text-slate-400 text-sm whitespace-nowrap px-4 py-3 bg-slate-800/30 rounded-xl border border-slate-600/30">
+            {filteredTrades.length} / {trades.length}건
+          </div>
+        </div>
+      </div>
+      
+      {filteredTrades.length > 0 ? (
+        <div className="space-y-4">
+          <div className="hidden md:grid md:grid-cols-7 gap-4 px-6 py-4 bg-slate-800/30 rounded-xl border border-slate-700/30">
+            <div className="text-slate-400 font-medium text-sm tracking-wide">날짜</div>
+            <div className="text-slate-400 font-medium text-sm tracking-wide text-right">입금</div>
+            <div className="text-slate-400 font-medium text-sm tracking-wide text-right">출금</div>
+            <div className="text-slate-400 font-medium text-sm tracking-wide text-right">잔고</div>
+            <div className="text-slate-400 font-medium text-sm tracking-wide text-right">손익</div>
+            <div className="text-slate-400 font-medium text-sm tracking-wide text-right">수익률</div>
+            <div className="text-slate-400 font-medium text-sm tracking-wide text-center">작업</div>
+          </div>
+
+          <div className="space-y-3">
+            {filteredTrades.map((trade, index) => (
+              <div 
+                key={trade.id} 
+                className="bg-white/[0.02] backdrop-blur-sm border border-white/[0.06] rounded-xl p-6 hover:bg-white/[0.04] hover:border-white/[0.1] transition-all duration-300 group"
+              >
+                <div className="md:hidden space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="text-white font-mono font-semibold text-lg mb-1">{trade.date}</div>
+                      <div className="flex items-center gap-3">
+                        {trade.entry > 0 && (
+                          <span className="text-blue-400 font-mono text-sm">+₩{trade.entry.toLocaleString()}</span>
+                        )}
+                        {trade.withdrawal > 0 && (
+                          <span className="text-amber-400 font-mono text-sm">-₩{trade.withdrawal.toLocaleString()}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-white font-mono font-bold text-lg">₩{trade.balance.toLocaleString()}</div>
+                      <div className={`font-mono font-semibold ${trade.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {trade.profit >= 0 ? '+' : ''}₩{trade.profit.toLocaleString()} ({trade.profit >= 0 ? '+' : ''}{trade.profitRate}%)
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {trade.memo && (
+                    <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
+                      <p className="text-slate-300 text-sm">{trade.memo}</p>
+                    </div>
+                  )}
+                  
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => startEditTrade(trade)}
+                      className="flex-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/30 px-4 py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                    >
+                      <Edit size={16} />
+                      수정
+                    </button>
+                    <button
+                      onClick={() => deleteTrade(trade.id)}
+                      className="flex-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 px-4 py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={16} />
+                      삭제
+                    </button>
+                  </div>
+                </div>
+
+                <div className="hidden md:grid md:grid-cols-7 gap-4 items-center">
+                  <div className="text-white font-mono font-semibold">{trade.date}</div>
+                  <div className="text-right">
+                    {trade.entry > 0 ? (
+                      <span className="text-blue-400 font-mono font-semibold">+₩{trade.entry.toLocaleString()}</span>
+                    ) : (
+                      <span className="text-slate-500">-</span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    {trade.withdrawal > 0 ? (
+                      <span className="text-amber-400 font-mono font-semibold">-₩{trade.withdrawal.toLocaleString()}</span>
+                    ) : (
+                      <span className="text-slate-500">-</span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-white font-mono font-bold text-lg">₩{trade.balance.toLocaleString()}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className={`font-mono font-bold text-lg ${trade.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {trade.profit >= 0 ? '+' : ''}₩{trade.profit.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className={`font-mono font-bold ${trade.profitRate >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {trade.profitRate >= 0 ? '+' : ''}{trade.profitRate}%
+                    </span>
+                  </div>
+                  <div className="text-center">
+                    <div className="flex gap-1 justify-center">
+                      <button
+                        onClick={() => startEditTrade(trade)}
+                        className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-all duration-200"
+                        title="거래 수정"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button
+                        onClick={() => deleteTrade(trade.id)}
+                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all duration-200"
+                        title="거래 삭제"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                {trade.memo && (
+                  <div className="hidden md:block mt-4 pt-4 border-t border-white/[0.06]">
+                    <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
+                      <p className="text-slate-300 text-sm leading-relaxed">{trade.memo}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-20">
+          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-slate-800/30 flex items-center justify-center">
+            <Calendar className="h-8 w-8 text-slate-500" />
+          </div>
+          <p className="text-slate-400 text-xl mb-2">거래 없음</p>
+          <p className="text-slate-500">첫 거래를 추가하여 시작하세요</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==================== MAIN COMPONENT ====================
+const TradingTrackerContent = () => {
+  const { state, dispatch } = useTrading();
+  const { toasts, addToast, removeToast } = useToast();
+  
+  const {
+    trades,
+    goals,
+    strategies,
+    activeTab,
+    filters,
+    ui,
+    editing,
+    memo
+  } = state;
+
+  const {
+    showForm,
+    showGoalModal,
+    showStrategiesModal,
+    showMemoModal
+  } = ui;
+
+  const {
+    editingTrade,
+    editingStrategy,
+    currentTrade,
+    currentStrategy
+  } = editing;
+
+  const { currentMemo, selectedDate } = memo;
+  const { searchQuery, activeFilter } = filters;
+
+  const { calculateCumulativeData, calculateProfitAndRate, getStats } = useTradeCalculations(trades, goals);
+  const { filteredTrades } = useTradeFilter(trades, searchQuery, activeFilter);
+
+  useKeyboardShortcuts({
+    'Ctrl+n': () => dispatch({ type: ACTIONS.SET_SHOW_FORM, payload: true }),
+    'Ctrl+s': () => showForm && handleSubmit(),
+    'Ctrl+d': () => dispatch({ type: ACTIONS.SET_ACTIVE_TAB, payload: TABS.DASHBOARD }),
+    'Ctrl+a': () => dispatch({ type: ACTIONS.SET_ACTIVE_TAB, payload: TABS.ANALYTICS }),
+    'Ctrl+t': () => dispatch({ type: ACTIONS.SET_ACTIVE_TAB, payload: TABS.TRADES }),
+    'Escape': () => showForm && handleCancel()
+  });
+
+  useEffect(() => {
+    if (currentTrade.balance && (currentTrade.entry || currentTrade.withdrawal)) {
+      const entry = parseFloat(currentTrade.entry) || 0;
+      const withdrawal = parseFloat(currentTrade.withdrawal) || 0;
+      const balance = parseFloat(currentTrade.balance) || 0;
+      
+      let prevBalance = 0;
+      if (editingTrade) {
+        const editIndex = trades.findIndex(trade => trade.id === editingTrade.id);
+        prevBalance = editIndex > 0 ? trades[editIndex - 1].balance : 0;
+      } else {
+        prevBalance = trades.length > 0 ? trades[trades.length - 1].balance : 0;
+      }
+      
+      const { profit, profitRate } = calculateProfitAndRate(entry, withdrawal, balance, prevBalance);
+      
+      dispatch({ 
+        type: ACTIONS.SET_CURRENT_TRADE, 
+        payload: {
+          ...currentTrade,
+          profit: profit.toString(),
+          profitRate: profitRate.toString()
+        }
+      });
+    }
+  }, [currentTrade.entry, currentTrade.withdrawal, currentTrade.balance, trades, editingTrade, calculateProfitAndRate, dispatch]);
+
+  const handleSubmit = useCallback(async () => {
+    if (!currentTrade.balance) {
+      addToast('잔고를 입력해주세요', 'error');
+      return;
+    }
+
+    try {
+      const entry = parseFloat(currentTrade.entry) || 0;
+      const withdrawal = parseFloat(currentTrade.withdrawal) || 0;
+      const balance = parseFloat(currentTrade.balance);
+      
+      let prevBalance = 0;
+      if (editingTrade) {
+        const editIndex = trades.findIndex(trade => trade.id === editingTrade.id);
+        prevBalance = editIndex > 0 ? trades[editIndex - 1].balance : 0;
+      } else {
+        prevBalance = trades.length > 0 ? trades[trades.length - 1].balance : 0;
+      }
+      
+      const { profit, profitRate, error } = calculateProfitAndRate(entry, withdrawal, balance, prevBalance);
+      
+      if (error) {
+        addToast(error, 'error');
+        return;
+      }
+
+      const tradeData = {
+        id: editingTrade ? editingTrade.id : Date.now(),
+        date: currentTrade.date,
+        entry,
+        withdrawal,
+        balance,
+        profit,
+        profitRate,
+        memo: currentTrade.memo || ''
+      };
+
+      if (editingTrade) {
+        dispatch({ type: ACTIONS.UPDATE_TRADE, payload: tradeData });
+        addToast('거래가 성공적으로 수정되었습니다', 'success');
+      } else {
+        dispatch({ type: ACTIONS.ADD_TRADE, payload: tradeData });
+        addToast('거래가 성공적으로 추가되었습니다', 'success');
+      }
+      
+      handleCancel();
+      
+    } catch (error) {
+      addToast('거래 처리 중 오류가 발생했습니다', 'error');
+    }
+  }, [currentTrade, trades, editingTrade, calculateProfitAndRate, addToast, dispatch]);
+
+  const handleCancel = useCallback(() => {
+    dispatch({ type: ACTIONS.RESET_EDITING });
+    dispatch({ type: ACTIONS.SET_SHOW_FORM, payload: false });
+  }, [dispatch]);
+
+  const startEditTrade = useCallback((trade) => {
+    dispatch({ type: ACTIONS.SET_EDITING_TRADE, payload: trade });
+    dispatch({ 
+      type: ACTIONS.SET_CURRENT_TRADE, 
+      payload: {
+        date: trade.date,
+        entry: trade.entry.toString(),
+        withdrawal: (trade.withdrawal || 0).toString(),
+        balance: trade.balance.toString(),
+        profit: trade.profit.toString(),
+        profitRate: trade.profitRate.toString(),
+        memo: trade.memo || ''
+      }
+    });
+    dispatch({ type: ACTIONS.SET_SHOW_FORM, payload: true });
+  }, [dispatch]);
+
+  const deleteTrade = useCallback((id) => {
+    const confirmed = window.confirm('이 거래를 삭제하시겠습니까?');
+    if (confirmed) {
+      dispatch({ type: ACTIONS.DELETE_TRADE, payload: id });
+      addToast('거래가 삭제되었습니다', 'success');
+    }
+  }, [dispatch, addToast]);
+
+  const stats = getStats;
+  const cumulativeData = calculateCumulativeData();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 text-white">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        <Header
+          activeTab={activeTab}
+          setActiveTab={(tab) => dispatch({ type: ACTIONS.SET_ACTIVE_TAB, payload: tab })}
+          setShowForm={(show) => dispatch({ type: ACTIONS.SET_SHOW_FORM, payload: show })}
+          setShowStrategiesModal={(show) => dispatch({ type: ACTIONS.SET_SHOW_STRATEGIES_MODAL, payload: show })}
+          setShowGoalModal={(show) => dispatch({ type: ACTIONS.SET_SHOW_GOAL_MODAL, payload: show })}
+        />
+
+        <TradeForm
+          showForm={showForm}
+          currentTrade={currentTrade}
+          setCurrentTrade={(trade) => dispatch({ type: ACTIONS.SET_CURRENT_TRADE, payload: trade })}
+          editingTrade={editingTrade}
+          formErrors={{}}
+          isSubmitting={false}
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+        />
+
+        {activeTab === TABS.DASHBOARD && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <EnhancedStatsCard
+                icon={Wallet}
+                title="포트폴리오 가치"
+                value={stats.currentBalance}
+                prefix="₩"
+                trend={stats.totalProfit >= 0 ? 'up' : 'down'}
+                target={stats.monthlyTarget}
+              />
+              <EnhancedStatsCard
+                icon={DollarSign}
+                title="총 투자금"
+                value={stats.totalInvested}
+                prefix="₩"
+                trend="neutral"
+              />
+              <EnhancedStatsCard
+                icon={stats.totalProfit >= 0 ? TrendingUp : TrendingDown}
+                title="총 수익"
+                value={Math.abs(stats.totalProfit)}
+                change={stats.totalProfitRate}
+                prefix={stats.totalProfit >= 0 ? "+₩" : "-₩"}
+                trend={stats.totalProfit >= 0 ? 'up' : 'down'}
+                target={stats.weeklyTarget}
+              />
+              <EnhancedStatsCard
+                icon={Target}
+                title="승률"
+                value={stats.winRate}
+                suffix="%"
+                trend={stats.winRate >= 50 ? 'up' : 'down'}
+                target={stats.targetWinRate}
+              />
+            </div>
+
+            <ChartSection
+              trades={trades}
+              cumulativeData={cumulativeData}
+              stats={stats}
+              setShowForm={(show) => dispatch({ type: ACTIONS.SET_SHOW_FORM, payload: show })}
+            />
+          </div>
+        )}
+
+        {activeTab === TABS.ANALYTICS && <AnalyticsTab />}
+
+        {activeTab === TABS.TRADES && (
+          <TradeList
+            filteredTrades={filteredTrades}
+            trades={trades}
+            searchQuery={searchQuery}
+            setSearchQuery={(query) => dispatch({ type: ACTIONS.SET_SEARCH_QUERY, payload: query })}
+            startEditTrade={startEditTrade}
+            deleteTrade={deleteTrade}
+          />
+        )}
+      </div>
+
+      <div className="fixed top-4 right-4 left-4 sm:left-auto z-50 space-y-2 max-w-sm sm:max-w-md ml-auto">
+        {toasts.map(toast => (
+          <Toast 
+            key={toast.id} 
+            toast={toast} 
+            onRemove={removeToast}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default function EnhancedCoinTradingTracker() {
+  return (
+    <TradingProvider>
+      <TradingTrackerContent />
+    </TradingProvider>
+  );
+}
+

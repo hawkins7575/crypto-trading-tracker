@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mv:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)",
+      "Bash(rm:*)",
+      "Bash(npm start)",
+      "Bash(pkill:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npm run dev:*)",
+      "Bash(npm run:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(npx convex:*)",
+      "Bash(env)",
+      "Bash(ipconfig:*)",
+      "Bash(HOST=0.0.0.0 npm start)",
+      "Bash(sudo pfctl:*)",
+      "Bash(brew install:*)",
+      "Bash(PORT=8080 HOST=0.0.0.0 npm start)",
+      "Bash(git init:*)"
+    ],
+    "deny": []
+  }
+}
