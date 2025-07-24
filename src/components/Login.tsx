@@ -1,12 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuthActions } from "@convex-dev/auth/react";
-import { Github } from 'lucide-react';
+import { Github, AlertCircle } from 'lucide-react';
 
 const Login: React.FC = () => {
   const { signIn } = useAuthActions();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleGitHubSignIn = () => {
-    void signIn("github");
+  const handleGitHubSignIn = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      await signIn("github");
+    } catch (err) {
+      console.error("Sign in error:", err);
+      setError("로그인 중 오류가 발생했습니다. 다시 시도해주세요.");
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -23,12 +34,20 @@ const Login: React.FC = () => {
         </div>
 
         <div className="space-y-4">
+          {error && (
+            <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg flex items-center gap-2">
+              <AlertCircle size={16} />
+              <span className="text-sm">{error}</span>
+            </div>
+          )}
+          
           <button
             onClick={handleGitHubSignIn}
-            className="w-full flex items-center justify-center gap-3 bg-gray-800 hover:bg-gray-700 text-white py-3 px-4 rounded-lg transition-colors duration-200 font-medium"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg transition-colors duration-200 font-medium"
           >
             <Github size={20} />
-            GitHub로 로그인
+            {loading ? "로그인 중..." : "GitHub로 로그인"}
           </button>
         </div>
 

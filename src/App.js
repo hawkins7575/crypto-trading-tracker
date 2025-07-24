@@ -4,32 +4,45 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { Authenticated, Unauthenticated } from "convex/react";
 import { useTradesData, useJournalsData, useGoalsData } from './hooks/useConvexData';
 import Login from './components/Login';
+import ErrorBoundary from './ErrorBoundary';
 
 export default function App() {
   console.log("App component starting...");
   
   return (
-    <>
+    <ErrorBoundary>
       <Authenticated>
         <AuthenticatedApp />
       </Authenticated>
       <Unauthenticated>
         <Login />
       </Unauthenticated>
-    </>
+    </ErrorBoundary>
   );
 }
 
 function AuthenticatedApp() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const { signOut } = useAuthActions();
   
-  // Convex 데이터 hooks 사용
+  // Hooks는 항상 조건 없이 호출되어야 함
+  const { signOut } = useAuthActions();
   const { trades, recentTrades } = useTradesData();
   const { journals } = useJournalsData();
   const { goals } = useGoalsData();
   
   console.log("Trades data:", trades);
+  
+  // 데이터 로딩 상태 확인
+  if (!trades && !journals && !goals) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-slate-300">데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-slate-900 text-white">
