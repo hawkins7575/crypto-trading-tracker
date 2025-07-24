@@ -590,7 +590,7 @@ export default function EnhancedCoinTradingTracker() {
     }
   }, [currentTrade.entry, currentTrade.withdrawal, currentTrade.balance, currentTrade.date, trades, editingTrade, calculateProfitAndRate]);
 
-  const stats = { ...getStats, ...goals };
+  const stats = { ...getStats, ...(goals || {}) };
   const recentAmounts = getRecentAmounts;
 
   return (
