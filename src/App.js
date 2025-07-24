@@ -1,48 +1,23 @@
 import React, { useState } from 'react';
 import { Home, BarChart3, Activity, BookOpen } from 'lucide-react';
-import { useAuthActions } from "@convex-dev/auth/react";
-import { Authenticated, Unauthenticated } from "convex/react";
-import { useTradesData, useJournalsData, useGoalsData } from './hooks/useConvexData';
-import Login from './components/Login';
-import ErrorBoundary from './ErrorBoundary';
 
 export default function App() {
   console.log("App component starting...");
   
-  return (
-    <ErrorBoundary>
-      <Authenticated>
-        <AuthenticatedApp />
-      </Authenticated>
-      <Unauthenticated>
-        <Login />
-      </Unauthenticated>
-    </ErrorBoundary>
-  );
-}
-
-function AuthenticatedApp() {
   const [activeTab, setActiveTab] = useState('dashboard');
   
-  // Hooks는 항상 조건 없이 호출되어야 함
-  const { signOut } = useAuthActions();
-  const { trades, recentTrades } = useTradesData();
-  const { journals } = useJournalsData();
-  const { goals } = useGoalsData();
+  // 더미 데이터 사용
+  const trades = [];
+  const recentTrades = [];
+  const journals = [];
+  const goals = {
+    monthlyTarget: 1000000,
+    weeklyTarget: 250000,
+    yearlyTarget: 12000000,
+    targetWinRate: 70,
+  };
   
-  console.log("Trades data:", trades);
-  
-  // 데이터 로딩 상태 확인
-  if (!trades && !journals && !goals) {
-    return (
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-slate-300">데이터를 불러오는 중...</p>
-        </div>
-      </div>
-    );
-  }
+  console.log("Using dummy data - no authentication required");
   
   return (
     <div className="min-h-screen bg-slate-900 text-white">
@@ -52,16 +27,8 @@ function AuthenticatedApp() {
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold text-white">Crypto Trading Tracker</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-slate-300 text-sm">
-              거래 데이터: {trades?.length || 0}개
-            </div>
-            <button 
-              onClick={() => signOut()}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"
-            >
-              로그아웃
-            </button>
+          <div className="text-slate-300 text-sm">
+            거래 데이터: {trades?.length || 0}개 (데모 모드)
           </div>
         </div>
       </div>
@@ -136,8 +103,8 @@ function AuthenticatedApp() {
               )}
             </div>
             
-            <div className="bg-green-600 text-white px-6 py-3 rounded-lg inline-block">
-              ✅ Convex 연결 완료 - 실시간 데이터 동기화 중
+            <div className="bg-blue-600 text-white px-6 py-3 rounded-lg inline-block">
+              🎯 데모 모드 - 앱 UI 테스트 버전
             </div>
           </div>
         )}
